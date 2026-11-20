@@ -1,0 +1,44 @@
+using Aplication.DTOs;
+using Aplication.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Aplication.Services
+{
+    public class LoginServices
+    {
+        private readonly ILoginRpository _Repository;
+
+        public LoginServices(ILoginRpository Repository)
+        {
+            _Repository = Repository;
+        }
+
+        public async Task<LoginResponseDTO?> LoginAsync(LoginDTO log)
+        {
+            if (log == null) return null;
+            if (string.IsNullOrEmpty(log.Correo)) return null;
+            if (string.IsNullOrEmpty(log.Contrasena)) return null;
+
+            var usuario = await _Repository.LoginAsync(
+                log.Correo,
+                log.Contrasena
+            );
+
+            if (usuario == null)
+                return null;
+
+            return new LoginResponseDTO
+            {
+                IdUsuario = usuario.IdUsuario,
+                Nombre = usuario.Nombre,
+                Apellido = usuario.Apellido,
+                Rol = usuario.Rol
+            };
+        }
+    }
+    
+}

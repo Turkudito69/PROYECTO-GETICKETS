@@ -7,7 +7,8 @@ go
 
 CREATE TABLE Tbl_Rol (
     IdRol INT PRIMARY KEY IDENTITY(1,1),
-    NombreRol VARCHAR(50) NOT NULL
+    NombreRol VARCHAR(50) NOT NULL,
+    IdEstado int references Tbl_Estado(IdEstado) not null Default 1
 );
 
 CREATE TABLE Tbl_Estado (
@@ -22,7 +23,7 @@ CREATE TABLE Tbl_Usuario (
     Correo VARCHAR(150) NOT NULL UNIQUE,
     Contrasena varchar(MAX),
     IdRol int references Tbl_Rol(IdRol),
-    IdEstado int references Tbl_Estado(IdEstado)
+    IdEstado int references Tbl_Estado(IdEstado)not null Default 1
 );
 
 ALTER TABLE Tbl_Usuario
@@ -33,17 +34,19 @@ DEFAULT 1 FOR IdEstado;          --a activo automaticamente al insertar un usuar
 CREATE TABLE Tbl_Categoria (
     IdCategoria INT PRIMARY KEY IDENTITY(1,1),
     NombreCategoria VARCHAR(100) NOT NULL,
-    IdEstado int references Tbl_Estado(IdEstado)
+    IdEstado int references Tbl_Estado(IdEstado)not null DEFAULT 1
 );
 
 CREATE TABLE Tbl_Prioridad (
     IdPrioridad INT PRIMARY KEY IDENTITY(1,1),
-    NombrePrioridad VARCHAR(50) NOT NULL
+    NombrePrioridad VARCHAR(50) NOT NULL,
+    IdEstado int references Tbl_Estado(IdEstado) not null DEFAULT 1
 );
 
 CREATE TABLE Tbl_EstadoTicket (
     IdEstadoTicket INT PRIMARY KEY IDENTITY(1,1),
-    NombreEstado VARCHAR(50) NOT NULL
+    NombreEstado VARCHAR(50) NOT NULL,
+    IdEstado int references Tbl_Estado(IdEstado) not null DEFAULT 1
 );
 ALTER TABLE Tbl_Ticket
 ADD CONSTRAINT DF_Ticket_Estado  --no borrar este tampoco , este es para el estado dee la tiket quede abierto al hacer una nueva tiket
@@ -53,7 +56,8 @@ CREATE TABLE Tbl_Tecnico (
     IdTecnico INT PRIMARY KEY IDENTITY(1,1),
     Especialidad VARCHAR(100) NULL,
     correo varchar(50) not null unique, 
-    IdUsuario int references Tbl_Usuario (IdUsuario) not null
+    IdUsuario int references Tbl_Usuario (IdUsuario) not null,
+    IdEstado int references Tbl_Estado(IdEstado) not null DEFAULT 1
 );
 CREATE TABLE Tbl_Ticket (
     IdTicket INT PRIMARY KEY IDENTITY(1,1),
@@ -94,21 +98,40 @@ CREATE TABLE Tbl_DetalleTicket (
     Solucion VARCHAR(MAX) NULL,
 );
 
+create table Tbl_Sesiones(
+  Idsesion int primary key identity(1,1),
+  Cantidad int, 
+  FechaIngreso Datetime default getdate(),
+  IdUsuario int references Tbl_Usuario(IdUsuario)
+)
+go
+
 --//PROCEDURES DE SPLISTAS
 
-Create or alter proc SP_ListarRoles
- as
-  begin
-   set nocount on;
-   begin try
-     select rl.IdRol,rl.NombreRol as Nombre  from Tbl_Rol as rl
-      Print 'Roles listados Exitosamente'
-   end try 
-   begin catch
-      Print 'No se pudo listar'+ @@error
-   end catch
- end
-go
+
+CREATE OR ALTER PROC SP_ListarRoles
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+
+        SELECT
+            rl.IdRol,
+            rl.NombreRol,
+            u.NombreEstado AS Nombre
+        FROM Tbl_Rol AS rl
+        INNER JOIN Tbl_Estado u
+            ON rl.IdEstado = u.IdEstado;
+        PRINT 'Roles listados Exitosamente';
+    END TRY
+    BEGIN CATCH
+        PRINT 'No se pudo listar: ' + ERROR_MESSAGE();
+    END CATCH
+END;
+GO
+
+exec SP_ListarRoles
 
 Create or alter proc SP_ListarEstados
  as
@@ -160,7 +183,8 @@ create or alter proc SP_ListarPrioridad
   begin    
   set nocount on;
    begin try 
-     select pr.IdPrioridad, pr.NombrePrioridad as Nombre from Tbl_Prioridad as pr
+     select pr.IdPrioridad, pr.NombrePrioridad , u.NombreEstado as Estado from Tbl_Prioridad as pr
+     inner join Tbl_Estado u on pr.IdEstado= u.IdEstado
      Print 'Prioidades listadas correctamente'
    end try
    begin catch
@@ -173,8 +197,9 @@ create or alter proc SP_ListarTecnicos
   begin    
   set nocount on;
    begin try 
-     select pr.IdTecnico,u.Nombre, u.Apellido ,pr.correo, pr.Especialidad  from Tbl_Tecnico as pr
-     inner join Tbl_Usuario u on pr.IdUsuario=u.IdUsuario
+     select pr.IdTecnico,u.Nombre, u.Apellido ,pr.correo, pr.Especialidad ,o.NombreEstado as Estado  from Tbl_Tecnico as pr
+     inner join Tbl_Usuario u on pr.IdUsuario=u.IdUsuario 
+     inner join Tbl_Estado o on pr.IdEstado= o.IdEstado
      Print 'Prioidades listadas correctamente'
    end try
    begin catch
@@ -182,12 +207,14 @@ create or alter proc SP_ListarTecnicos
    end catch
   end
 go
+
 create or alter proc SP_ListarEstadoTiketc
  as 
   begin    
   set nocount on;
    begin try 
-     select pr.IdEstadoTicket, pr.NombreEstado as Nombre from Tbl_EstadoTicket as pr
+     select pr.IdEstadoTicket, pr.NombreEstado as Nombre, u.NombreEstado as Estado from Tbl_EstadoTicket as pr
+     inner join Tbl_Estado u on pr.IdEstado= u.IdEstado
      Print 'Estado de ticktes listadas correctamente'
    end try
    begin catch
@@ -234,7 +261,39 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROC SP_ListarTicketPorUsuario
+    @IdUsuario INT
+AS
+BEGIN
+    SET NOCOUNT ON;
 
+    SELECT
+        tk.IdTicket,
+        tk.IdUsuario,
+        tk.CodigoTiket AS Ticket,
+        tk.Descripcion,
+        CONCAT(solicitante.Nombre, ' ', solicitante.Apellido) AS Solicitante,
+        CONCAT(tecnicoUsuario.Nombre, ' ', tecnicoUsuario.Apellido) AS Tecnico,
+        cat.NombreCategoria AS Categoria,
+        pr.NombrePrioridad AS Prioridad,
+        et.NombreEstado AS EstadoTicket,
+        tk.FechaCreacion
+    FROM Tbl_Ticket AS tk
+    INNER JOIN Tbl_Usuario AS solicitante
+        ON tk.IdUsuario = solicitante.IdUsuario
+    LEFT JOIN Tbl_Tecnico AS tc
+        ON tk.IdTecnico = tc.IdTecnico
+    LEFT JOIN Tbl_Usuario AS tecnicoUsuario
+        ON tc.IdUsuario = tecnicoUsuario.IdUsuario
+    INNER JOIN Tbl_Categoria AS cat
+        ON tk.IdCategoria = cat.IdCategoria
+    INNER JOIN Tbl_Prioridad AS pr
+        ON tk.IdPrioridad = pr.IdPrioridad
+    INNER JOIN Tbl_EstadoTicket AS et
+        ON tk.IdEstadoTicket = et.IdEstadoTicket
+    WHERE tk.IdUsuario = @IdUsuario;
+END;
+GO
 
 CREATE OR ALTER PROC SP_ListarDetalleTicket
 (
@@ -285,6 +344,7 @@ BEGIN
 END;
 GO
 select*from Tbl_DetalleTicket
+
 CREATE OR ALTER PROC SP_ListarAuditoriaTicket
 AS
 BEGIN
@@ -747,8 +807,8 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROC SP_AsignarTicket        --SP asignar tikect al tecnico
 
+CREATE OR ALTER PROC SP_AsignarTicket        --SP asignar tikect al tecnico
 (
     @IdTicket INT,
     @IdTecnico INT,
@@ -774,16 +834,45 @@ BEGIN
         BEGIN
             RAISERROR('El usuario no existe', 16, 1);
         END;
-
+        -- validar que el tecnico este activo, su usuario activo y tenga rol Tecnico
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Tecnico t
+            INNER JOIN Tbl_Usuario u ON t.IdUsuario = u.IdUsuario
+            INNER JOIN Tbl_Estado et ON t.IdEstado = et.IdEstado
+            INNER JOIN Tbl_Estado eu ON u.IdEstado = eu.IdEstado
+            INNER JOIN Tbl_Rol r ON u.IdRol = r.IdRol
+            INNER JOIN Tbl_Estado er ON r.IdEstado = er.IdEstado
+            WHERE t.IdTecnico = @IdTecnico
+            AND et.NombreEstado = 'Activo'
+            AND eu.NombreEstado = 'Activo'
+            AND r.NombreRol = 'Tecnico'
+            AND er.NombreEstado = 'Activo'
+        )
+        BEGIN
+            RAISERROR('El tecnico esta inactivo, su usuario esta inactivo o no tiene el rol Tecnico', 16, 1);
+        END;
+        -- validar que quien realiza la asignacion sea administrador activo
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Usuario u
+            INNER JOIN Tbl_Rol r ON u.IdRol = r.IdRol
+            INNER JOIN Tbl_Estado e ON u.IdEstado = e.IdEstado
+            WHERE u.IdUsuario = @IdUsuario
+            AND r.NombreRol = 'Administrador'
+            AND e.NombreEstado = 'Activo'
+            AND r.IdEstado = e.IdEstado
+        )
+        BEGIN
+            RAISERROR('El usuario no es un administrador activo', 16, 1);
+        END;
         --validacion del tiket si eta abierto y si hay6 tecnco para asignar xdxd
-        IF NOT EXISTS (SELECT 1 FROM Tbl_Ticket t INNER JOIN Tbl_EstadoTicket e ON t.IdEstadoTicket = e.IdEstadoTicket WHERE t.IdTicket = @IdTicket AND e.NombreEstado = 'Abierto'AND t.IdTecnico IS NULL)
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Ticket t INNER JOIN Tbl_EstadoTicket e ON t.IdEstadoTicket = e.IdEstadoTicket WHERE t.IdTicket = @IdTicket AND e.NombreEstado = 'Abierto' AND t.IdTecnico IS NULL)
         BEGIN
             RAISERROR('El ticket no esta disponible para asignacion', 16, 1);
         END;
-
         DECLARE @IdEstadoAsignado INT;
         DECLARE @NombreTecnico VARCHAR(250);
-
         -- Obtener estado Asignado
         SELECT @IdEstadoAsignado = IdEstadoTicket
         FROM Tbl_EstadoTicket
@@ -812,8 +901,10 @@ BEGIN
 
         -- insertarmos en auditoria
         INSERT INTO Tbl_AuditoriaTicket (IdTicket,IdUsuario,Accion,Descripcion)VALUES(@IdTicket,@IdUsuario,'Asignacion de tecnico','Se asigno el tecnico ' + @NombreTecnico + ' al ticket');
+
         COMMIT TRAN;
         PRINT 'Tecnico asignado correctamente';
+
     END TRY
     BEGIN CATCH
         IF (@@TRANCOUNT > 0)
@@ -822,7 +913,6 @@ BEGIN
     END CATCH
 END;
 GO
-
 
 
 CREATE OR ALTER PROC SP_IniciarAtencion  --SP de tecnico inicar atencion 
@@ -1039,6 +1129,750 @@ BEGIN
 END;
 GO
 
+---------------------------------------------
+--UPDATE Y DELETES  TABLAS RESTANTES
+
+
+CREATE OR ALTER PROC SP_ActualizarRol
+(
+    @IdRol INT,
+    @NombreRol VARCHAR(50),
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Rol WHERE IdRol = @IdRol)
+        BEGIN
+            RAISERROR('El rol no existe', 16, 1);
+        END
+        IF (@NombreRol IS NULL OR @NombreRol = '')
+        BEGIN
+            RAISERROR('El nombre del rol es obligatorio', 16, 1);
+        END;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Estado WHERE IdEstado = @IdEstado)
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+        UPDATE Tbl_Rol
+        SET
+            NombreRol = @NombreRol,
+            IdEstado = @IdEstado
+        WHERE IdRol = @IdRol;
+        COMMIT TRAN;
+        PRINT 'Rol actualizado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+CREATE OR ALTER PROC SP_EliminarRol--este sp llevca borrado logico oiste
+(
+    @IdRol INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Rol WHERE IdRol = @IdRol)
+        BEGIN
+            RAISERROR('El rol no existe', 16, 1);
+        END;
+        DECLARE @IdEstadoInactivo INT;
+        SELECT @IdEstadoInactivo = IdEstado
+        FROM Tbl_Estado
+        WHERE NombreEstado = 'Inactivo';
+        IF (@IdEstadoInactivo IS NULL)
+        BEGIN
+            RAISERROR('No existe el estado Inactivo', 16, 1);
+        END;
+        UPDATE Tbl_Rol
+        SET IdEstado = @IdEstadoInactivo
+        WHERE IdRol = @IdRol;
+        COMMIT TRAN;
+        PRINT 'Rol desactivado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_ActualizarCategoria
+(
+    @IdCategoria INT,
+    @NombreCategoria VARCHAR(100),
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Categoria WHERE IdCategoria = @IdCategoria)
+        BEGIN
+            RAISERROR('La categoria no existe', 16, 1);
+        END;
+        IF (@NombreCategoria IS NULL OR @NombreCategoria = '')
+        BEGIN
+            RAISERROR('El nombre de la categoria es obligatorio', 16, 1);
+        END;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Estado WHERE IdEstado = @IdEstado)
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+        UPDATE Tbl_Categoria
+        SET
+            NombreCategoria = @NombreCategoria,
+            IdEstado = @IdEstado
+        WHERE IdCategoria = @IdCategoria;
+        COMMIT TRAN;
+        PRINT 'Categoria actualizada correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_EliminarCategoria
+(
+    @IdCategoria INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Categoria WHERE IdCategoria = @IdCategoria)
+        BEGIN
+            RAISERROR('La categoria no existe', 16, 1);
+        END;
+        DECLARE @IdEstadoInactivo INT;
+        SELECT @IdEstadoInactivo = IdEstado
+        FROM Tbl_Estado
+        WHERE NombreEstado = 'Inactivo';
+        IF (@IdEstadoInactivo IS NULL)
+        BEGIN
+            RAISERROR('No existe el estado Inactivo', 16, 1);
+        END;
+        -- borrado logico de categoria
+        UPDATE Tbl_Categoria
+        SET IdEstado = @IdEstadoInactivo
+        WHERE IdCategoria = @IdCategoria;
+        COMMIT TRAN;
+        PRINT 'Categoria desactivada correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_ActualizarPrioridad
+(
+    @IdPrioridad INT,
+    @NombrePrioridad VARCHAR(50),
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Prioridad WHERE IdPrioridad = @IdPrioridad)
+        BEGIN
+            RAISERROR('La prioridad no existe', 16, 1);
+        END;
+        IF (@NombrePrioridad IS NULL OR @NombrePrioridad = '')
+        BEGIN
+            RAISERROR('El nombre de la prioridad es obligatorio', 16, 1);
+        END;
+
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Estado WHERE IdEstado = @IdEstado)
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+        -- actualizar prioridad
+        UPDATE Tbl_Prioridad
+        SET
+            NombrePrioridad = @NombrePrioridad,
+            IdEstado = @IdEstado
+        WHERE IdPrioridad = @IdPrioridad;
+        COMMIT TRAN;
+        PRINT 'Prioridad actualizada correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_EliminarPrioridad --igual lleva borrado loguco
+(
+    @IdPrioridad INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Prioridad WHERE IdPrioridad = @IdPrioridad)
+        BEGIN
+            RAISERROR('La prioridad no existe', 16, 1);
+        END;
+        DECLARE @IdEstadoInactivo INT;
+        SELECT @IdEstadoInactivo = IdEstado
+        FROM Tbl_Estado
+        WHERE NombreEstado = 'Inactivo';
+        IF (@IdEstadoInactivo IS NULL)
+        BEGIN
+            RAISERROR('No existe el estado Inactivo', 16, 1);
+        END;
+        UPDATE Tbl_Prioridad
+        SET IdEstado = @IdEstadoInactivo
+        WHERE IdPrioridad = @IdPrioridad;
+        COMMIT TRAN;
+        PRINT 'Prioridad desactivada correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_ActualizarEstadoTicket
+(
+    @IdEstadoTicket INT,
+    @NombreEstado VARCHAR(50),
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_EstadoTicket WHERE IdEstadoTicket = @IdEstadoTicket)
+        BEGIN
+            RAISERROR('El estado del ticket no existe', 16, 1);
+        END;
+        IF (@NombreEstado IS NULL OR @NombreEstado = '')
+        BEGIN
+            RAISERROR('El nombre del estado es obligatorio', 16, 1);
+        END;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Estado WHERE IdEstado = @IdEstado)
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+        UPDATE Tbl_EstadoTicket
+        SET
+            NombreEstado = @NombreEstado,
+            IdEstado = @IdEstado
+        WHERE IdEstadoTicket = @IdEstadoTicket;
+        COMMIT TRAN;
+        PRINT 'Estado del ticket actualizado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_EliminarEstadoTicket
+(
+    @IdEstadoTicket INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_EstadoTicket WHERE IdEstadoTicket = @IdEstadoTicket)
+        BEGIN
+            RAISERROR('El estado del ticket no existe', 16, 1);
+        END;
+        DECLARE @IdEstadoInactivo INT;
+        SELECT @IdEstadoInactivo = IdEstado
+        FROM Tbl_Estado
+        WHERE NombreEstado = 'Inactivo';
+        IF (@IdEstadoInactivo IS NULL)
+        BEGIN
+            RAISERROR('No existe el estado Inactivo', 16, 1);
+        END;
+        UPDATE Tbl_EstadoTicket
+        SET IdEstado = @IdEstadoInactivo
+        WHERE IdEstadoTicket = @IdEstadoTicket;
+        COMMIT TRAN;
+        PRINT 'Estado del ticket desactivado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+CREATE OR ALTER PROC SP_ActualizarUsuario
+(
+    @IdUsuario INT,
+    @Nombre VARCHAR(100),
+    @Apellido VARCHAR(100),
+    @Correo VARCHAR(150),
+    @Contrasena VARCHAR(100),
+    @IdRol INT,
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Usuario WHERE IdUsuario = @IdUsuario)
+        BEGIN
+            RAISERROR('El usuario no existe', 16, 1);
+        END;
+        IF (@Nombre IS NULL OR @Nombre = '')
+        BEGIN
+            RAISERROR('El nombre es obligatorio', 16, 1);
+        END;
+        IF (@Apellido IS NULL OR @Apellido = '')
+        BEGIN
+            RAISERROR('El apellido es obligatorio', 16, 1);
+        END;
+        IF (@Correo IS NULL OR @Correo = '')
+        BEGIN
+            RAISERROR('El correo es obligatorio', 16, 1);
+        END;
+        IF (@Contrasena IS NULL OR @Contrasena = '')
+        BEGIN
+            RAISERROR('La contraseña es obligatoria', 16, 1);
+        END;
+        IF EXISTS (SELECT 1 FROM Tbl_Usuario WHERE Correo = @Correo AND IdUsuario <> @IdUsuario)
+        BEGIN
+            RAISERROR('El correo ya esta registrado', 16, 1);
+        END;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Rol WHERE IdRol = @IdRol AND IdEstado = 1)
+        BEGIN
+            RAISERROR('El rol no existe o esta inactivo', 16, 1);
+        END;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Estado WHERE IdEstado = @IdEstado)
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+        UPDATE Tbl_Usuario
+        SET
+            Nombre = @Nombre,
+            Apellido = @Apellido,
+            Correo = @Correo,
+            Contrasena = CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', @Contrasena), 2),
+            IdRol = @IdRol,
+            IdEstado = @IdEstado
+        WHERE IdUsuario = @IdUsuario;
+        COMMIT TRAN;
+        PRINT 'Usuario actualizado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_EliminarUsuario
+(
+    @IdUsuario INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Usuario WHERE IdUsuario = @IdUsuario)
+        BEGIN
+            RAISERROR('El usuario no existe', 16, 1);
+        END;
+        DECLARE @IdEstadoInactivo INT;
+        SELECT @IdEstadoInactivo = IdEstado
+        FROM Tbl_Estado
+        WHERE NombreEstado = 'Inactivo';
+
+        IF (@IdEstadoInactivo IS NULL)
+        BEGIN
+            RAISERROR('No existe el estado Inactivo', 16, 1);
+        END;
+        UPDATE Tbl_Usuario
+        SET IdEstado = @IdEstadoInactivo
+        WHERE IdUsuario = @IdUsuario;
+        COMMIT TRAN;
+        PRINT 'Usuario desactivado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_ActualizarTecnico
+(
+    @IdTecnico INT,
+    @Especialidad VARCHAR(100),
+    @Correo VARCHAR(50),
+    @IdUsuario INT,
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Tecnico WHERE IdTecnico = @IdTecnico)
+        BEGIN
+            RAISERROR('El tecnico no existe', 16, 1);
+        END;
+        IF (@Correo IS NULL OR @Correo = '')
+        BEGIN
+            RAISERROR('El correo es obligatorio', 16, 1);
+        END;
+        IF EXISTS (SELECT 1 FROM Tbl_Tecnico WHERE correo = @Correo AND IdTecnico <> @IdTecnico)
+        BEGIN
+            RAISERROR('El correo ya esta registrado', 16, 1);
+        END;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Usuario WHERE IdUsuario = @IdUsuario AND IdEstado = 1)
+        BEGIN
+            RAISERROR('El usuario no existe o esta inactivo', 16, 1);
+        END;
+        IF EXISTS (SELECT 1 FROM Tbl_Tecnico WHERE IdUsuario = @IdUsuario AND IdTecnico <> @IdTecnico)
+        BEGIN
+            RAISERROR('El usuario ya esta registrado como tecnico', 16, 1);
+        END;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Estado WHERE IdEstado = @IdEstado)
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+        UPDATE Tbl_Tecnico
+        SET
+            Especialidad = @Especialidad,
+            correo = @Correo,
+            IdUsuario = @IdUsuario,
+            IdEstado = @IdEstado
+        WHERE IdTecnico = @IdTecnico;
+        COMMIT TRAN;
+        PRINT 'Tecnico actualizado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+CREATE OR ALTER PROC SP_EliminarTecnico
+(
+    @IdTecnico INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRAN;
+        IF NOT EXISTS (SELECT 1 FROM Tbl_Tecnico WHERE IdTecnico = @IdTecnico)
+        BEGIN
+            RAISERROR('El tecnico no existe', 16, 1);
+        END;
+        DECLARE @IdEstadoInactivo INT;
+        SELECT @IdEstadoInactivo = IdEstado
+        FROM Tbl_Estado
+        WHERE NombreEstado = 'Inactivo';
+        IF (@IdEstadoInactivo IS NULL)
+        BEGIN
+            RAISERROR('No existe el estado Inactivo', 16, 1);
+        END;
+        UPDATE Tbl_Tecnico
+        SET IdEstado = @IdEstadoInactivo
+        WHERE IdTecnico = @IdTecnico;
+        COMMIT TRAN;
+        PRINT 'Tecnico desactivado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+        THROW;
+    END CATCH
+END;
+GO
+CREATE OR ALTER PROC SP_EliminarEstado
+(
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRAN;
+
+        -- Validar que el estado exista
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE IdEstado = @IdEstado
+        )
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+
+        -- Evitar desactivar un estado que ya está inactivo
+        IF EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE IdEstado = @IdEstado
+              AND NombreEstado = 'Inactivo'
+        )
+        BEGIN
+            RAISERROR('El estado ya se encuentra inactivo', 16, 1);
+        END;
+
+        -- Desactivar estado
+        UPDATE Tbl_Estado
+        SET NombreEstado = 'Inactivo'
+        WHERE IdEstado = @IdEstado;
+
+        COMMIT TRAN;
+
+        PRINT 'Estado desactivado correctamente';
+
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+
+        THROW;
+    END CATCH
+END;
+GO
+CREATE OR ALTER PROC SP_EditarEstado
+(
+    @IdEstado INT,
+    @Nombre VARCHAR(50)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRAN;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE IdEstado = @IdEstado
+        )
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+
+        IF NULLIF(LTRIM(RTRIM(@Nombre)), '') IS NULL
+        BEGIN
+            RAISERROR('El nombre del estado no puede estar vacio', 16, 1);
+        END;
+
+        IF EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE NombreEstado = @Nombre
+              AND IdEstado <> @IdEstado
+        )
+        BEGIN
+            RAISERROR('Ya existe un estado con ese nombre', 16, 1);
+        END;
+
+        UPDATE Tbl_Estado
+        SET NombreEstado = LTRIM(RTRIM(@Nombre))
+        WHERE IdEstado = @IdEstado;
+
+        COMMIT TRAN;
+
+        PRINT 'Estado actualizado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+
+        THROW;
+    END CATCH
+END;
+GO
+
+
+create or alter proc SP_ListarDetalleTicketGeneral
+ as 
+  begin    
+  set nocount on;
+   begin try 
+     select pr.IdDetalleTicket, u.CodigoTiket as Ticket , pr.Diagnostico ,pr.Solucion from Tbl_DetalleTicket as pr
+    INNER JOIN Tbl_Ticket u ON pr.IdTicket = u.IdTicket
+     Print 'General de Ticket listadas correctamente'
+   end try
+   begin catch
+     Print 'No se pudo listar'+@@error
+   end catch
+  end
+go
+
+
+--Login
+
+CREATE OR ALTER PROCEDURE SP_ValidarLogin
+(
+    @Correo VARCHAR(50),
+    @Clave VARCHAR(50)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @IdValidado INT;
+    DECLARE @ClaveHash VARCHAR(64);
+
+    BEGIN TRY
+
+        IF NULLIF(LTRIM(RTRIM(@Correo)), '') IS NULL
+           OR NULLIF(LTRIM(RTRIM(@Clave)), '') IS NULL
+        BEGIN
+            SELECT 0 AS Exito,
+                   'El correo y la contraseña son obligatorios.' AS Mensaje;
+            RETURN;
+        END;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Usuario
+            WHERE Correo = @Correo
+        )
+        BEGIN
+            SELECT 0 AS Exito,
+                   'El usuario no existe.' AS Mensaje;
+            RETURN;
+        END;
+
+        SET @ClaveHash =
+            CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', @Clave), 2);
+
+        SELECT @IdValidado = IdUsuario
+        FROM Tbl_Usuario
+        WHERE Correo = @Correo
+          AND Contrasena = @ClaveHash;
+
+        IF @IdValidado IS NULL
+        BEGIN
+            SELECT 0 AS Exito,
+                   'La contraseña es incorrecta.' AS Mensaje;
+            RETURN;
+        END;
+
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Sesiones WITH (UPDLOCK, HOLDLOCK)
+            WHERE IdUsuario = @IdValidado
+        )
+        BEGIN
+            INSERT INTO Tbl_Sesiones (Cantidad, IdUsuario)
+            VALUES (1, @IdValidado);
+        END
+        ELSE
+        BEGIN
+            UPDATE Tbl_Sesiones
+            SET Cantidad = Cantidad + 1
+            WHERE IdUsuario = @IdValidado;
+        END;
+
+        COMMIT TRANSACTION;
+
+        SELECT
+            1 AS Exito,
+            'Inicio de sesión exitoso.' AS Mensaje,
+            U.IdUsuario,
+            U.Nombre,
+            U.Apellido,
+            U.Correo,
+            U.IdEstado,
+            U.IdRol,
+            R.NombreRol AS NombreRol,
+            S.Cantidad AS CantidadSesiones
+        FROM Tbl_Usuario AS U
+        INNER JOIN Tbl_Rol AS R
+            ON U.IdRol = R.IdRol
+        INNER JOIN Tbl_Sesiones AS S
+            ON U.IdUsuario = S.IdUsuario
+        WHERE U.IdUsuario = @IdValidado;
+
+    END TRY
+
+    BEGIN CATCH
+
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SELECT
+            0 AS Exito,
+            ERROR_MESSAGE() AS Mensaje;
+
+    END CATCH;
+END;
+GO
+
 
 --exec LISTAS
 exec SP_ListarRoles
@@ -1047,8 +1881,8 @@ exec SP_ListarUsuarios
 exec SP_ListarCategorias
 exec SP_ListarPrioridad
 exec SP_ListarEstadoTiketc
+exec SP_ListarDetalleTicketGeneral
 exec SP_ListarTecnicos
-exec SP_ListarTicket
 exec SP_ListarDetalleTicket 1
 exec SP_ListarDetalleTicket 2
 exec SP_ListarDetalleTicket 3
@@ -1057,29 +1891,53 @@ exec SP_ListarDetalleTicket 5
 exec SP_ListarAuditoriaTicket
 exec SP_ListarSeguimiento 4
 exec SP_ListarSeguimiento 3
-exec SP_ListarSeguimiento 2
+exec SP_ListarSeguimiento 6
 exec SP_ListarSeguimiento 1
 select*from Tbl_DetalleTicket   --esta tabla no tiene sp pero es donde guardamos la info de las onservaciones y la solucion del tecnico
 
 --exec Insert
 exec SP_NuevoRol 'Tecnico' 
 exec SP_NuevoEstado 'Bloaqueado'
-exec SP_NuevoUsuario 'Lester','Hernandez','lesterhernandez@gmail.com','lester123',2
-exec SP_NuevaCategoria 'Sorfware',1
-exec SP_NuevaPrioridad 'Baja'
+exec SP_NuevoUsuario 'Mario','Pelaz','mariopleaz@gmail.com','pelaz123',2
+exec SP_NuevaCategoria  'Sorfware',1
+exec SP_NuevaPrioridad 'Alta'
 exec SP_NuevoEstadoTicket 'Cancelado'
-exec SP_NuevoTecnico 'Hardware','maicolsanchez@gmail.com',2
-exec SP_NuevoTicket 'No craga pornhub',2,3,1
+exec SP_NuevoTecnico 'Software','xml@gmail.com',4
+
+--exec tickets
+exec SP_ListarTicketPorUsuario 3
+exec SP_ListarTicket
+exec SP_NuevoTicket 'No funciona la pc',6,2,2
+exec SP_AsignarTicket   5,2,1
+exec SP_IniciarAtencion 5,2
+exec SP_RegistrarObservacion 5,2,'Fuente de poder desconetada'  ---este exec es un insert pero se autoidentifica como update; inclusivos hasta en sql
+exec SP_FinalizarTicket 5,2,'La computadora tenia desconetado la fuente de poder del tomacorriente','Reconexion del componente'
+
+--Login
+exec SP_ValidarLogin 'juniorss@gmail.com','junior123'
+select*from Tbl_Sesiones
+--exec update y delete
+exec SP_EditarEstado 3,'Bloqueado'
+exec SP_EliminarEstado 3
 
 
---exec updates
-exec SP_AsignarTicket 2,2,1
-exec SP_IniciarAtencion 2,2
-exec SP_RegistrarObservacion 2,2,'Fuente de poder desconetada'  ---este exec es un insert pero se autoidentifica como update; inclusivos hasta en sql
-exec SP_FinalizarTicket 2,2,'La computadora tenia desconetado la fuente de poder del tomacorriente','Reconexion del componente'
+exec SP_ActualizarRol 2,'Usuario',1
+exec SP_EliminarRol 2
 
+exec SP_ActualizarCategoria 2, 'Software',1
+exec SP_EliminarCategoria 2
 
+exec SP_ActualizarPrioridad 2 , 'Alta',1
+exec SP_EliminarPrioridad 2
 
+exec SP_ActualizarEstadoTicket 5, 'Cancelado',1
+exec SP_EliminarEstadoTicket 5
+
+exec SP_ActualizarUsuario 1,'Junior','Silva','juniorss@gmail.com','junior123',1,1
+exec SP_EliminarUsuario 2
+
+exec SP_ActualizarTecnico 3, 'Hardware','sggdc@gmail.com',2,1
+exec SP_EliminarTecnico 3
 
 
 --Fecha 07/11/26  CULMINADO
@@ -1087,17 +1945,17 @@ exec SP_FinalizarTicket 2,2,'La computadora tenia desconetado la fuente de poder
 --asignar tiked , inicar tencion , guardar seguimiento ,  finalizar atencion 
 
 
---FECHA 08/11/26
+--FECHA 08/11/26 --CULMINADO
 --PENDIENTE:
 --updates
 --deletes
 
 
 --//APARTADO DE PRUEBAS/////
-select*from Tbl_DetalleTicket
-update Tbl_Ticket
+select*from Tbl_Tecnico
+update Tbl_Tecnico
 set IdUsuario = 3
-where IdTicket =1
+where IdTecnico =3
 
 -- Verificar el estado del ticket
 SELECT
@@ -1116,7 +1974,7 @@ WHERE IdTicket = 2;
 -- Verificar seguimiento
 SELECT *
 FROM Tbl_SeguimientoTicket
-WHERE IdTicket = 2
+WHERE IdTicket = 2  
 ORDER BY IdSeguimiento DESC;
 
 -- Verificar auditoria
@@ -1124,3 +1982,5 @@ SELECT *
 FROM Tbl_AuditoriaTicket
 WHERE IdTicket = 2
 ORDER BY IdAuditoria DESC;
+
+EXEC sp_help 'Tbl_Rol';
