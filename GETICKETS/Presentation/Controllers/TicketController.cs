@@ -29,6 +29,23 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpGet("Usuario/{idUsuario:int}")]
+        public async Task<IActionResult> ListarTicketsPorUsuario([FromRoute] int idUsuario)
+        {
+            if (idUsuario <= 0)
+                return BadRequest(new { msj = "El id de usuario debe ser mayor que cero." });
+
+            try
+            {
+                var lista = await _services.ListarTicketsPorUsuario(idUsuario);
+                return Ok(lista);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+        }
+
         [HttpPost("Insertar ticket")]
         public async Task<IActionResult> InsertarTicket([FromBody] TicketDTO dto)
         {

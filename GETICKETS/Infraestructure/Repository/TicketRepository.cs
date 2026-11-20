@@ -42,6 +42,36 @@ namespace Infraestructure.Repository
             return tickets;
         }
 
+        public async Task<IEnumerable<Ticket>> ListarTicketsPorUsuarioAsync(int idUsuario)
+        {
+            var tickets = new List<Ticket>();
+            using var con = dBConexion.CreateConnection();
+            await con.OpenAsync();
+            using var cmd = new SqlCommand("SP_ListarTicketPorUsuario", con)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            cmd.Parameters.Add(new SqlParameter("@IdUsuario", SqlDbType.Int) { Value = idUsuario });
+
+            using var dr = await cmd.ExecuteReaderAsync();
+            while (await dr.ReadAsync())
+            {
+                tickets.Add(new Ticket
+                {
+                    IdTicket = Convert.ToInt32(dr["IdTicket"]),
+                    IdUsuario = Convert.ToInt32(dr["IdUsuario"]),
+                    Descripcion = dr["Descripcion"]?.ToString(),
+                    Tickets = dr["Ticket"]?.ToString(),
+                    Tecnico = dr["Tecnico"]?.ToString(),
+                    Categoria = dr["Categoria"]?.ToString(),
+                    Prioridad = dr["Prioridad"]?.ToString(),
+                    EstadoTicket = dr["EstadoTicket"]?.ToString(),
+                    FehaCreacion = Convert.ToDateTime(dr["FechaCreacion"])
+                });
+            }
+            return tickets;
+        }
+
         public async Task NuevoTicketAsync(Ticket ticket)
         {
             using var con = dBConexion.CreateConnection();

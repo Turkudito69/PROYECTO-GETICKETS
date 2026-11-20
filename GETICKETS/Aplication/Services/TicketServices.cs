@@ -29,6 +29,24 @@ namespace Aplication.Services
                 FehaCreacion = a.FehaCreacion,
             });
         }
+        public async Task<IEnumerable<TicketDTO>> ListarTicketsPorUsuario(int idUsuario)
+        {
+            var listar = await _Repository.ListarTicketsPorUsuarioAsync(idUsuario);
+
+            return listar.Select(a => new TicketDTO
+            {
+                IdTicket = a.IdTicket,
+                IdUsuario = a.IdUsuario,
+                Tickets = a.Tickets,
+                Descripcion = a.Descripcion,
+                Tecnico = a.Tecnico,
+                Categoria = a.Categoria,
+                Prioridad = a.Prioridad,
+                EstadoTicket = a.EstadoTicket,
+                FehaCreacion = a.FehaCreacion,
+            });
+        }
+
         public async Task NuevaTicket(TicketDTO Dts)
         {
             var oTicket = new Ticket

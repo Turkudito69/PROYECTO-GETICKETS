@@ -1,4 +1,4 @@
-﻿using Aplication.Interfaces;
+using Aplication.Interfaces;
 using Domain.Entities;
 using Infraestructure.DataBase;
 using Microsoft.Data.SqlClient;
@@ -36,6 +36,7 @@ namespace Infraestructure.Repository
             {
                 resultado = new Login
                 {
+                    IdUsuario = Convert.ToInt32(reader["IdUsuario"]),
                     Nombre = reader["Nombre"]?.ToString(),
                     Apellido = reader["Apellido"]?.ToString(),
                     Rol = reader["NombreRol"]?.ToString(),

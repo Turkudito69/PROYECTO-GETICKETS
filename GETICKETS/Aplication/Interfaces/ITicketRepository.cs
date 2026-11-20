@@ -1,4 +1,4 @@
-﻿using Aplication.DTOs;
+using Aplication.DTOs;
 using Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ namespace Aplication.Interfaces
     public interface ITicketRepository
     {
         Task<IEnumerable<Ticket>> ListarTicketsAsync();
+        Task<IEnumerable<Ticket>> ListarTicketsPorUsuarioAsync(int idUsuario);
         Task NuevoTicketAsync(Ticket ticket);
         Task AsignarTicketAsync(Ticket ticket);
         Task IniciarAtencionAsync(Ticket ticket);

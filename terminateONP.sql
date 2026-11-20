@@ -98,6 +98,14 @@ CREATE TABLE Tbl_DetalleTicket (
     Solucion VARCHAR(MAX) NULL,
 );
 
+create table Tbl_Sesiones(
+  Idsesion int primary key identity(1,1),
+  Cantidad int, 
+  FechaIngreso Datetime default getdate(),
+  IdUsuario int references Tbl_Usuario(IdUsuario)
+)
+go
+
 --//PROCEDURES DE SPLISTAS
 
 
@@ -253,7 +261,39 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROC SP_ListarTicketPorUsuario
+    @IdUsuario INT
+AS
+BEGIN
+    SET NOCOUNT ON;
 
+    SELECT
+        tk.IdTicket,
+        tk.IdUsuario,
+        tk.CodigoTiket AS Ticket,
+        tk.Descripcion,
+        CONCAT(solicitante.Nombre, ' ', solicitante.Apellido) AS Solicitante,
+        CONCAT(tecnicoUsuario.Nombre, ' ', tecnicoUsuario.Apellido) AS Tecnico,
+        cat.NombreCategoria AS Categoria,
+        pr.NombrePrioridad AS Prioridad,
+        et.NombreEstado AS EstadoTicket,
+        tk.FechaCreacion
+    FROM Tbl_Ticket AS tk
+    INNER JOIN Tbl_Usuario AS solicitante
+        ON tk.IdUsuario = solicitante.IdUsuario
+    LEFT JOIN Tbl_Tecnico AS tc
+        ON tk.IdTecnico = tc.IdTecnico
+    LEFT JOIN Tbl_Usuario AS tecnicoUsuario
+        ON tc.IdUsuario = tecnicoUsuario.IdUsuario
+    INNER JOIN Tbl_Categoria AS cat
+        ON tk.IdCategoria = cat.IdCategoria
+    INNER JOIN Tbl_Prioridad AS pr
+        ON tk.IdPrioridad = pr.IdPrioridad
+    INNER JOIN Tbl_EstadoTicket AS et
+        ON tk.IdEstadoTicket = et.IdEstadoTicket
+    WHERE tk.IdUsuario = @IdUsuario;
+END;
+GO
 
 CREATE OR ALTER PROC SP_ListarDetalleTicket
 (
@@ -304,6 +344,7 @@ BEGIN
 END;
 GO
 select*from Tbl_DetalleTicket
+
 CREATE OR ALTER PROC SP_ListarAuditoriaTicket
 AS
 BEGIN
@@ -1606,7 +1647,231 @@ BEGIN
     END CATCH
 END;
 GO
+CREATE OR ALTER PROC SP_EliminarEstado
+(
+    @IdEstado INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
+    BEGIN TRY
+        BEGIN TRAN;
+
+        -- Validar que el estado exista
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE IdEstado = @IdEstado
+        )
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+
+        -- Evitar desactivar un estado que ya está inactivo
+        IF EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE IdEstado = @IdEstado
+              AND NombreEstado = 'Inactivo'
+        )
+        BEGIN
+            RAISERROR('El estado ya se encuentra inactivo', 16, 1);
+        END;
+
+        -- Desactivar estado
+        UPDATE Tbl_Estado
+        SET NombreEstado = 'Inactivo'
+        WHERE IdEstado = @IdEstado;
+
+        COMMIT TRAN;
+
+        PRINT 'Estado desactivado correctamente';
+
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+
+        THROW;
+    END CATCH
+END;
+GO
+CREATE OR ALTER PROC SP_EditarEstado
+(
+    @IdEstado INT,
+    @Nombre VARCHAR(50)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRAN;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE IdEstado = @IdEstado
+        )
+        BEGIN
+            RAISERROR('El estado no existe', 16, 1);
+        END;
+
+        IF NULLIF(LTRIM(RTRIM(@Nombre)), '') IS NULL
+        BEGIN
+            RAISERROR('El nombre del estado no puede estar vacio', 16, 1);
+        END;
+
+        IF EXISTS (
+            SELECT 1
+            FROM Tbl_Estado
+            WHERE NombreEstado = @Nombre
+              AND IdEstado <> @IdEstado
+        )
+        BEGIN
+            RAISERROR('Ya existe un estado con ese nombre', 16, 1);
+        END;
+
+        UPDATE Tbl_Estado
+        SET NombreEstado = LTRIM(RTRIM(@Nombre))
+        WHERE IdEstado = @IdEstado;
+
+        COMMIT TRAN;
+
+        PRINT 'Estado actualizado correctamente';
+    END TRY
+    BEGIN CATCH
+        IF (@@TRANCOUNT > 0)
+            ROLLBACK TRAN;
+
+        THROW;
+    END CATCH
+END;
+GO
+
+
+create or alter proc SP_ListarDetalleTicketGeneral
+ as 
+  begin    
+  set nocount on;
+   begin try 
+     select pr.IdDetalleTicket, u.CodigoTiket as Ticket , pr.Diagnostico ,pr.Solucion from Tbl_DetalleTicket as pr
+    INNER JOIN Tbl_Ticket u ON pr.IdTicket = u.IdTicket
+     Print 'General de Ticket listadas correctamente'
+   end try
+   begin catch
+     Print 'No se pudo listar'+@@error
+   end catch
+  end
+go
+
+
+--Login
+
+CREATE OR ALTER PROCEDURE SP_ValidarLogin
+(
+    @Correo VARCHAR(50),
+    @Clave VARCHAR(50)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @IdValidado INT;
+    DECLARE @ClaveHash VARCHAR(64);
+
+    BEGIN TRY
+
+        IF NULLIF(LTRIM(RTRIM(@Correo)), '') IS NULL
+           OR NULLIF(LTRIM(RTRIM(@Clave)), '') IS NULL
+        BEGIN
+            SELECT 0 AS Exito,
+                   'El correo y la contraseña son obligatorios.' AS Mensaje;
+            RETURN;
+        END;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Usuario
+            WHERE Correo = @Correo
+        )
+        BEGIN
+            SELECT 0 AS Exito,
+                   'El usuario no existe.' AS Mensaje;
+            RETURN;
+        END;
+
+        SET @ClaveHash =
+            CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', @Clave), 2);
+
+        SELECT @IdValidado = IdUsuario
+        FROM Tbl_Usuario
+        WHERE Correo = @Correo
+          AND Contrasena = @ClaveHash;
+
+        IF @IdValidado IS NULL
+        BEGIN
+            SELECT 0 AS Exito,
+                   'La contraseña es incorrecta.' AS Mensaje;
+            RETURN;
+        END;
+
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Tbl_Sesiones WITH (UPDLOCK, HOLDLOCK)
+            WHERE IdUsuario = @IdValidado
+        )
+        BEGIN
+            INSERT INTO Tbl_Sesiones (Cantidad, IdUsuario)
+            VALUES (1, @IdValidado);
+        END
+        ELSE
+        BEGIN
+            UPDATE Tbl_Sesiones
+            SET Cantidad = Cantidad + 1
+            WHERE IdUsuario = @IdValidado;
+        END;
+
+        COMMIT TRANSACTION;
+
+        SELECT
+            1 AS Exito,
+            'Inicio de sesión exitoso.' AS Mensaje,
+            U.IdUsuario,
+            U.Nombre,
+            U.Apellido,
+            U.Correo,
+            U.IdEstado,
+            U.IdRol,
+            R.NombreRol AS NombreRol,
+            S.Cantidad AS CantidadSesiones
+        FROM Tbl_Usuario AS U
+        INNER JOIN Tbl_Rol AS R
+            ON U.IdRol = R.IdRol
+        INNER JOIN Tbl_Sesiones AS S
+            ON U.IdUsuario = S.IdUsuario
+        WHERE U.IdUsuario = @IdValidado;
+
+    END TRY
+
+    BEGIN CATCH
+
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SELECT
+            0 AS Exito,
+            ERROR_MESSAGE() AS Mensaje;
+
+    END CATCH;
+END;
+GO
 
 
 --exec LISTAS
@@ -1616,8 +1881,8 @@ exec SP_ListarUsuarios
 exec SP_ListarCategorias
 exec SP_ListarPrioridad
 exec SP_ListarEstadoTiketc
+exec SP_ListarDetalleTicketGeneral
 exec SP_ListarTecnicos
-exec SP_ListarTicket
 exec SP_ListarDetalleTicket 1
 exec SP_ListarDetalleTicket 2
 exec SP_ListarDetalleTicket 3
@@ -1626,27 +1891,35 @@ exec SP_ListarDetalleTicket 5
 exec SP_ListarAuditoriaTicket
 exec SP_ListarSeguimiento 4
 exec SP_ListarSeguimiento 3
-exec SP_ListarSeguimiento 2
+exec SP_ListarSeguimiento 6
 exec SP_ListarSeguimiento 1
 select*from Tbl_DetalleTicket   --esta tabla no tiene sp pero es donde guardamos la info de las onservaciones y la solucion del tecnico
 
 --exec Insert
 exec SP_NuevoRol 'Tecnico' 
 exec SP_NuevoEstado 'Bloaqueado'
-exec SP_NuevoUsuario 'Lester','Hernandez','lesterhernandez@gmail.com','lester123',2
-exec SP_NuevaCategoria 'Sorfware',1
+exec SP_NuevoUsuario 'Mario','Pelaz','mariopleaz@gmail.com','pelaz123',2
+exec SP_NuevaCategoria  'Sorfware',1
 exec SP_NuevaPrioridad 'Alta'
 exec SP_NuevoEstadoTicket 'Cancelado'
-exec SP_NuevoTecnico 'Hardware','maicolsanchez@gmail.com',2
-exec SP_NuevoTicket 'No funciona la impresora',3,1,1
+exec SP_NuevoTecnico 'Software','xml@gmail.com',4
 
 --exec tickets
-exec SP_AsignarTicket 5,2,1
+exec SP_ListarTicketPorUsuario 3
+exec SP_ListarTicket
+exec SP_NuevoTicket 'No funciona la pc',6,2,2
+exec SP_AsignarTicket   5,2,1
 exec SP_IniciarAtencion 5,2
 exec SP_RegistrarObservacion 5,2,'Fuente de poder desconetada'  ---este exec es un insert pero se autoidentifica como update; inclusivos hasta en sql
 exec SP_FinalizarTicket 5,2,'La computadora tenia desconetado la fuente de poder del tomacorriente','Reconexion del componente'
 
+--Login
+exec SP_ValidarLogin 'juniorss@gmail.com','junior123'
+select*from Tbl_Sesiones
 --exec update y delete
+exec SP_EditarEstado 3,'Bloqueado'
+exec SP_EliminarEstado 3
+
 
 exec SP_ActualizarRol 2,'Usuario',1
 exec SP_EliminarRol 2
@@ -1660,11 +1933,12 @@ exec SP_EliminarPrioridad 2
 exec SP_ActualizarEstadoTicket 5, 'Cancelado',1
 exec SP_EliminarEstadoTicket 5
 
-exec SP_ActualizarUsuario 2,'Maicol','Sanchez','maicolsanchez@gmail.com','maicol123',3,1
+exec SP_ActualizarUsuario 1,'Junior','Silva','juniorss@gmail.com','junior123',1,1
 exec SP_EliminarUsuario 2
 
-exec SP_ActualizarTecnico 2, 'Hardware','maicolsanchez@gmail.com',2,1
-exec SP_EliminarTecnico 2
+exec SP_ActualizarTecnico 3, 'Hardware','sggdc@gmail.com',2,1
+exec SP_EliminarTecnico 3
+
 
 --Fecha 07/11/26  CULMINADO
 --pendiente:
@@ -1678,10 +1952,10 @@ exec SP_EliminarTecnico 2
 
 
 --//APARTADO DE PRUEBAS/////
-select*from Tbl_DetalleTicket
-update Tbl_Ticket
+select*from Tbl_Tecnico
+update Tbl_Tecnico
 set IdUsuario = 3
-where IdTicket =1
+where IdTecnico =3
 
 -- Verificar el estado del ticket
 SELECT

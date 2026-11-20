@@ -1,3 +1,4 @@
+
 using Infraestructure.DataBase;
 using Infraestructure.Repository;
 using Aplication.Interfaces;
@@ -8,10 +9,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Configuración CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendTickets", policy =>
+    {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
 
 var connectionString = builder.Configuration.GetConnectionString("default")
     ?? throw new InvalidOperationException("No se encontró la cadena de conexión 'default'.");
@@ -32,6 +43,7 @@ builder.Services.AddScoped<IDTGeneraRepository, DTGeneralRepository>();
 builder.Services.AddScoped<IDetalleTicketRepository, DetalleTicketRepository>();
 builder.Services.AddScoped<ICategoriaRepository, CategoriaRepository>();
 builder.Services.AddScoped<IAuditoriaRepository, AuditoriaRepository>();
+
 builder.Services.AddScoped<TicketServices>();
 builder.Services.AddScoped<UsuarioServices>();
 builder.Services.AddScoped<TecnicoServices>();
@@ -49,11 +61,14 @@ builder.Services.AddScoped<AuditoriaServices>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors("FrontendTickets");
 
 app.UseAuthorization();
 
