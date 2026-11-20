@@ -29,6 +29,7 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpPost]
         [HttpPost("Insertar estado")]
         public async Task<IActionResult> InsertarEstadoTicket([FromBody] EstadoTicketDTO dto)
         {
@@ -37,8 +38,8 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                await _services.NuevoEstadoTicket(dto);
-                return StatusCode(201, "Estado de ticket agregado correctamente");
+                var idEstadoTicket = await _services.NuevoEstadoTicket(dto);
+                return StatusCode(201, new { mensaje = "Estado de ticket agregado correctamente.", idEstadoTicket });
             }
             catch (Exception ex)
             {
@@ -54,8 +55,9 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                if (id != dto.IdEstadoTicket)
+                if (dto.IdEstadoTicket != 0 && id != dto.IdEstadoTicket)
                     return BadRequest(new { msj = "El id no coincide" });
+                dto.IdEstadoTicket = id;
 
                 await _services.EditarEstadoTicket(dto);
                 return NoContent();

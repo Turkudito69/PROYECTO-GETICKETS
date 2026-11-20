@@ -36,8 +36,9 @@ namespace Infraestructure.Repository
                     {
                         oestado.Add(new EstadoTicket
                         {
-                            IdEstado = Convert.ToInt32(dr["IdEstadoTicket"]),
+                            IdEstadoTicket = Convert.ToInt32(dr["IdEstadoTicket"]),
                             NombreEstado = dr["Nombre"].ToString(),
+                            IdEstado = Convert.ToInt32(dr["IdEstado"]),
                             Estado = dr["Estado"].ToString(),
                         });
                     }
@@ -46,7 +47,7 @@ namespace Infraestructure.Repository
             return oestado;
         }
 
-        public async Task NuevoEstadoTicketAsync(EstadoTicket estadoTicket)
+        public async Task<int> NuevoEstadoTicketAsync(EstadoTicket estadoTicket)
         {
             using var con = dBConexion.CreateConnection();
             await con.OpenAsync();
@@ -55,7 +56,7 @@ namespace Infraestructure.Repository
             {
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add(new SqlParameter("@NombreEstado", estadoTicket.NombreEstado));
-                await cmd.ExecuteNonQueryAsync();
+                return Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
         }
         public async Task EditarEstadoTicketAsync(EstadoTicket estadoTicket)

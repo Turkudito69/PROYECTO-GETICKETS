@@ -29,14 +29,20 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpPost]
         [HttpPost("Insertar ticket")]
         public async Task<IActionResult> InsertarTicket([FromBody] TicketDTO dto)
         {
             try
             {
                 if (!ModelState.IsValid) return BadRequest(new { msj = "El modelo no es válido" });
-                await _services.NuevaTicket(dto);
-                return StatusCode(201, "Ticket agregado correctamente");
+                var ticket = await _services.NuevaTicket(dto);
+                return StatusCode(201, new
+                {
+                    mensaje = "Ticket agregado correctamente.",
+                    idTicket = ticket.IdTicket,
+                    codigoTicket = ticket.CodigoTicket
+                });
             }
             catch (Exception ex)
             {
@@ -96,6 +102,34 @@ namespace Presentation.Controllers
             {
                 if (!ModelState.IsValid) return BadRequest(new { msj = "El modelo no es válido" });
                 await _services.FinalizarTiket(dto);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+        }
+
+        [HttpPut("ConfirmarCompletado")]
+        public async Task<IActionResult> ConfirmarCompletado([FromBody] Ticket dto)
+        {
+            try
+            {
+                await _services.ConfirmarCompletado(dto);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+        }
+
+        [HttpPut("Reabrir")]
+        public async Task<IActionResult> ReabrirTicket([FromBody] Ticket dto)
+        {
+            try
+            {
+                await _services.ReabrirTicket(dto);
                 return NoContent();
             }
             catch (Exception ex)

@@ -28,10 +28,14 @@ namespace Aplication.Services
                 Apellido = a.Apellido,
                 Correo = a.Correo,
                 Especialidad = a.Especialidad,
+                IdUsuario = a.IdUsuario ?? 0,
+                IdEstado = a.IdEstado ?? 0,
+                Usuario = a.Usuario,
+                FotoUrl = a.FotoUrl,
                 Estado = a.Estado,
             });
         }
-        public async Task NuevoTecnico(TecnicoDTO Dts)
+        public async Task<int> NuevoTecnico(TecnicoDTO Dts)
         {
             var oTecnico = new Tecnico
             {
@@ -39,7 +43,7 @@ namespace Aplication.Services
                 Correo = Dts.Correo,
                 IdUsuario = Dts.IdUsuario,
             };
-            await _Repository.NuevoTecnicoAsync(oTecnico);
+            return await _Repository.NuevoTecnicoAsync(oTecnico);
         }
         public async Task EditarTecnico(TecnicoDTO Dts)
         {

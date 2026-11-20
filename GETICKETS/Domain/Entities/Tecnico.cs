@@ -18,6 +18,7 @@ namespace Domain.Entities
         public string? Apellido { get; set; }
         public string? Estado { get; set; }  //Nombre del estado activo , inactivo etc
         public string? Usuario { get; set; } //Nombre completo del tecnico
+        public string? FotoUrl { get; set; }
 
     }
 }

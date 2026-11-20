@@ -8,6 +8,21 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ExpoWebDevelopment", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:8081",
+                "http://127.0.0.1:8081",
+                "http://localhost:19006",
+                "http://127.0.0.1:19006",
+                "http://localhost:8083")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -32,6 +47,7 @@ builder.Services.AddScoped<IDTGeneraRepository, DTGeneralRepository>();
 builder.Services.AddScoped<IDetalleTicketRepository, DetalleTicketRepository>();
 builder.Services.AddScoped<ICategoriaRepository, CategoriaRepository>();
 builder.Services.AddScoped<IAuditoriaRepository, AuditoriaRepository>();
+builder.Services.AddScoped<IPuestoRepository, PuestoRepository>();
 builder.Services.AddScoped<TicketServices>();
 builder.Services.AddScoped<UsuarioServices>();
 builder.Services.AddScoped<TecnicoServices>();
@@ -45,12 +61,14 @@ builder.Services.AddScoped<DTGeneralSevices>();
 builder.Services.AddScoped<DetalleTicketServices>();
 builder.Services.AddScoped<CategoriaServices>();
 builder.Services.AddScoped<AuditoriaServices>();
+builder.Services.AddScoped<PuestoServices>();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseCors("ExpoWebDevelopment");
     app.UseSwagger();
     app.UseSwaggerUI();
 }

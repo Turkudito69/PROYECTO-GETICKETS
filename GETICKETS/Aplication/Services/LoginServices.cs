@@ -1,5 +1,6 @@
 ﻿using Aplication.DTOs;
 using Aplication.Interfaces;
+using Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,18 +18,13 @@ namespace Aplication.Services
             _Repository = Repository;
         }
 
-        public async Task<bool> LoginAsync(LoginDTO log)
+        public async Task<Login?> LoginAsync(LoginDTO log)
         {
-            if (log == null) return false;
-            if (string.IsNullOrEmpty(log.Correo)) return false;
-            if (string.IsNullOrEmpty(log.Contrasena)) return false;
+            if (log == null) return null;
+            if (string.IsNullOrWhiteSpace(log.Correo)) return null;
+            if (string.IsNullOrWhiteSpace(log.Contrasena)) return null;
 
-            var usuario = await _Repository.LoginAsync(log.Correo, log.Contrasena);
-
-            if (usuario == null)
-                return false;
-
-            return true;
+            return await _Repository.LoginAsync(log.Correo, log.Contrasena);
         }
     }
 }

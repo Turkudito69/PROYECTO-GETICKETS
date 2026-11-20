@@ -11,6 +11,8 @@ namespace Aplication.DTOs
         public int IdCategoria { get; set; }
         public string? NombreCategoria { get; set; }
         public int IdEstado { get; set; }
+        public string? Icono { get; set; }
+        public string? Descripcion { get; set; }
 
         //lista
         public string? Nombrecat { get; set; }

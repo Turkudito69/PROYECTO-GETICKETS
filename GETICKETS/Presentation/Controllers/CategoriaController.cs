@@ -28,14 +28,15 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpPost]
         [HttpPost("Insertar categoria")]
         public async Task<IActionResult> InsertarCategoria([FromBody] CategoriaDTO dto)
         {
             try
             {
                 if (!ModelState.IsValid) return BadRequest(new { msj = "El modelo no es válido" });
-                await _services.NuevaCategoria(dto);
-                return StatusCode(201, "Categoría agregada correctamente");
+                var idCategoria = await _services.NuevaCategoria(dto);
+                return StatusCode(201, new { mensaje = "Categoría agregada correctamente.", idCategoria });
             }
             catch (Exception ex)
             {
@@ -51,8 +52,9 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                if (id != dto.IdCategoria)
+                if (dto.IdCategoria != 0 && id != dto.IdCategoria)
                     return BadRequest(new { msj = "El id no coincide" });
+                dto.IdCategoria = id;
                 await _services.EditarCategoria(dto);
                 return NoContent();
             }

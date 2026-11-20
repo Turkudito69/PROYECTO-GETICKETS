@@ -29,6 +29,7 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpPost]
         [HttpPost("Insertar prioridad")]
         public async Task<IActionResult> InsertarPrioridad([FromBody] PrioridadDTO dto)
         {
@@ -37,8 +38,8 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                await _services.NuevaPrioridad(dto);
-                return StatusCode(201, "Prioridad agregada correctamente");
+                var idPrioridad = await _services.NuevaPrioridad(dto);
+                return StatusCode(201, new { mensaje = "Prioridad agregada correctamente.", idPrioridad });
             }
             catch (Exception ex)
             {
@@ -54,8 +55,9 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                if (id != dto.IdPrioridad)
+                if (dto.IdPrioridad != 0 && id != dto.IdPrioridad)
                     return BadRequest(new { msj = "El id no coincide" });
+                dto.IdPrioridad = id;
 
                 await _services.EditarPrioridad(dto);
                 return NoContent();

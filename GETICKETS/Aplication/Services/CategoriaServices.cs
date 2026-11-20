@@ -25,17 +25,23 @@ namespace Aplication.Services
             {
                 IdCategoria = a.IdCategoria,
                 Nombrecat = a.Nombrecat,
+                NombreCategoria = a.NombreCategoria,
+                IdEstado = a.IdEstado,
+                Icono = a.Icono,
+                Descripcion = a.Descripcion,
                 Estado = a.Estado,
             });
         }
-        public async Task NuevaCategoria(CategoriaDTO Dts)
+        public async Task<int> NuevaCategoria(CategoriaDTO Dts)
         {
             var oCategoria = new Categoria
             {
                 NombreCategoria = Dts.NombreCategoria,
-                IdEstado = Dts.IdEstado,
+                IdEstado = Dts.IdEstado > 0 ? Dts.IdEstado : 1,
+                Icono = Dts.Icono,
+                Descripcion = Dts.Descripcion,
             };
-            await _Repository.NuevaCategoriaAsync(oCategoria);
+            return await _Repository.NuevaCategoriaAsync(oCategoria);
         }
         public async Task EditarCategoria(CategoriaDTO Dts)
         {
@@ -44,6 +50,8 @@ namespace Aplication.Services
                 IdCategoria = Dts.IdCategoria,
                 NombreCategoria = Dts.NombreCategoria,
                 IdEstado = Dts.IdEstado,
+                Icono = Dts.Icono,
+                Descripcion = Dts.Descripcion,
             };
             await _Repository.EditarCategoriaAsync(oCategoria);
         }

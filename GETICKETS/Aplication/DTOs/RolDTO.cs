@@ -11,6 +11,8 @@ namespace Aplication.DTOs
         public int IdRol { get; set; }
         public string? NombreRol { get; set; }
         public int IdEstado { get; set; }
+        public string? Descripcion { get; set; }
+        public List<string>? Permisos { get; set; }
         //Lista
         public string? Estado { get; set; }  //Nombre del estado activo , inactivo etc
     }

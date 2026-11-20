@@ -25,17 +25,18 @@ namespace Aplication.Services
             {
                 IdPrioridad = a.IdPrioridad,
                 NombrePrioridad = a.NombrePrioridad,
+                IdEstado = a.IdEstado,
                 Estado = a.Estado,
             });
         }
-        public async Task NuevaPrioridad(PrioridadDTO Dts)
+        public async Task<int> NuevaPrioridad(PrioridadDTO Dts)
         {
             var oPrioridad = new Prioridad
             {
                 NombrePrioridad = Dts.NombrePrioridad,
                 IdEstado = Dts.IdEstado,
             };
-            await _Repository.NuevaPrioridadAsync(oPrioridad);
+            return await _Repository.NuevaPrioridadAsync(oPrioridad);
         }
         public async Task EditarPrioridad(PrioridadDTO Dts)
         {

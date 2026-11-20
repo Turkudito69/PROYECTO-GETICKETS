@@ -28,14 +28,34 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpPost]
         [HttpPost("Insertar usuario")]
         public async Task<IActionResult> InsertarUsuario([FromBody] UsuarioDTO dto)
         {
             try
             {
                 if (!ModelState.IsValid) return BadRequest(new { msj = "El modelo no es válido" });
-                await _services.NuevoUsuario(dto);
-                return StatusCode(201, "Usuario agregado correctamente");
+                var creado = await _services.NuevoUsuario(dto);
+                return StatusCode(201, new
+                {
+                    mensaje = "Usuario agregado correctamente.",
+                    idUsuario = creado.IdUsuario,
+                    idPuesto = creado.IdPuesto
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+        }
+
+        [HttpPut("Foto/{id}")]
+        public async Task<IActionResult> ActualizarFotoUsuario(int id, [FromBody] UsuarioDTO dto)
+        {
+            try
+            {
+                await _services.ActualizarFotoUsuario(id, dto.FotoUrl);
+                return NoContent();
             }
             catch (Exception ex)
             {
@@ -49,7 +69,9 @@ namespace Presentation.Controllers
             try
             {
                 if (!ModelState.IsValid) return BadRequest(new { msj = "El modelo no es válido" });
-                if (id != dto.IdUsuario) return BadRequest(new { msj = "El id no coincide" });
+                if (dto.IdUsuario != 0 && id != dto.IdUsuario)
+                    return BadRequest(new { msj = "El id no coincide" });
+                dto.IdUsuario = id;
                 await _services.EditarUsuario(dto);
                 return NoContent();
             }

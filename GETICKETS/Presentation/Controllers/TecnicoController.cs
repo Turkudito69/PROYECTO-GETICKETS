@@ -29,6 +29,7 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpPost]
         [HttpPost("Insertar tecnico")]
         public async Task<IActionResult> InsertarTecnico([FromBody] TecnicoDTO dto)
         {
@@ -37,8 +38,8 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                await _services.NuevoTecnico(dto);
-                return StatusCode(201, "Técnico agregado correctamente");
+                var idTecnico = await _services.NuevoTecnico(dto);
+                return StatusCode(201, new { mensaje = "Técnico agregado correctamente.", idTecnico });
             }
             catch (Exception ex)
             {
@@ -54,8 +55,9 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                if (id != dto.IdTecnico)
+                if (dto.IdTecnico != 0 && id != dto.IdTecnico)
                     return BadRequest(new { msj = "El id no coincide" });
+                dto.IdTecnico = id;
 
                 await _services.EditarTecnico(dto);
                 return NoContent();

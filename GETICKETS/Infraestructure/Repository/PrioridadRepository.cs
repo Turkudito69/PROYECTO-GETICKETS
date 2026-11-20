@@ -38,6 +38,7 @@ namespace Infraestructure.Repository
                         {
                             IdPrioridad = Convert.ToInt32(dr["IdPrioridad"]),
                             NombrePrioridad = dr["NombrePrioridad"].ToString(),
+                            IdEstado = Convert.ToInt32(dr["IdEstado"]),
                             Estado = dr["Estado"].ToString(),
                         });
                     }
@@ -46,7 +47,7 @@ namespace Infraestructure.Repository
             return oPrioridad;
         }
 
-        public async Task NuevaPrioridadAsync(Prioridad prioridad)
+        public async Task<int> NuevaPrioridadAsync(Prioridad prioridad)
         {
             using var con = dBConexion.CreateConnection();
             await con.OpenAsync();
@@ -56,7 +57,7 @@ namespace Infraestructure.Repository
                 cmd.CommandType = CommandType.StoredProcedure;
 
                 cmd.Parameters.Add(new SqlParameter("NombrePrioridad", prioridad.NombrePrioridad));
-                await cmd.ExecuteNonQueryAsync();
+                return Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
         }
         public async Task EditarPrioridadAsync(Prioridad prioridad)

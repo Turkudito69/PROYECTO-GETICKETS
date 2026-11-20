@@ -25,17 +25,22 @@ namespace Aplication.Services
             {
                 IdRol = a.IdRol,
                 NombreRol = a.NombreRol,
+                IdEstado = a.IdEstado,
+                Descripcion = a.Descripcion,
+                Permisos = a.Permisos,
                 Estado = a.Estado,
             });
         }
-        public async Task NuevaRol(RolDTO Dts)
+        public async Task<int> NuevaRol(RolDTO Dts)
         {
             var oRol = new Rol
             {
                 NombreRol = Dts.NombreRol,
-                IdEstado = Dts.IdEstado,
+                IdEstado = Dts.IdEstado > 0 ? Dts.IdEstado : 1,
+                Descripcion = Dts.Descripcion,
+                Permisos = Dts.Permisos,
             };
-            await _Repository.NuevoRolAsync(oRol);
+            return await _Repository.NuevoRolAsync(oRol);
         }
         public async Task EditarRol(RolDTO Dts)
         {
@@ -44,6 +49,8 @@ namespace Aplication.Services
                 IdRol = Dts.IdRol,
                 NombreRol = Dts.NombreRol,
                 IdEstado = Dts.IdEstado,
+                Descripcion = Dts.Descripcion,
+                Permisos = Dts.Permisos,
             };
             await _Repository.EditarRolAsync(oRol);
         }

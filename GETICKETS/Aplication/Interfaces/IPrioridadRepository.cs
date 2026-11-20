@@ -11,7 +11,7 @@ namespace Aplication.Interfaces
     {
         Task<IEnumerable<Prioridad>> ListarPrioridadesAsync();
         Task EditarPrioridadAsync(Prioridad prioridad);
-        Task NuevaPrioridadAsync(Prioridad prioridad);
+        Task<int> NuevaPrioridadAsync(Prioridad prioridad);
         Task EliminarPrioridadesAsync(int id);
     }
 }

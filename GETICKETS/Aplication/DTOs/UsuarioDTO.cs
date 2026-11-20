@@ -19,6 +19,10 @@ namespace Aplication.DTOs
         //Lista
         public string? Rol { get; set; }
         public string? Estado { get; set; }  //Nombre del estado activo , inactivo etc
+        public string? FotoUrl { get; set; }
+        public bool? AsignarPuesto { get; set; }
+        public int? IdPuesto { get; set; }
+        public int? IdUsuarioAccion { get; set; }
 
     }
 }

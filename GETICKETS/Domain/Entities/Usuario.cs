@@ -19,6 +19,7 @@ namespace Domain.Entities
         //Lista
         public string? Rol { get; set; }  
         public string? Estado { get; set; }  //Nombre del estado activo , inactivo etc
+        public string? FotoUrl { get; set; }
 
 
     }

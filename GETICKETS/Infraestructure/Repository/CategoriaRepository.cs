@@ -38,6 +38,10 @@ namespace Infraestructure.Repository
                         {
                             IdCategoria = Convert.ToInt32(dr["IdCategoria"]),
                             Nombrecat = dr["Nombre"].ToString(),
+                            NombreCategoria = dr["NombreCategoria"].ToString(),
+                            IdEstado = Convert.ToInt32(dr["IdEstado"]),
+                            Icono = dr["Icono"] == DBNull.Value ? null : dr["Icono"].ToString(),
+                            Descripcion = dr["Descripcion"] == DBNull.Value ? null : dr["Descripcion"].ToString(),
                             Estado = dr["Estado"].ToString(),
 
                         });
@@ -47,7 +51,7 @@ namespace Infraestructure.Repository
             return ocategoria;
         }
 
-        public async Task NuevaCategoriaAsync(Categoria categoria)
+        public async Task<int> NuevaCategoriaAsync(Categoria categoria)
         {
             using var con = dBConexion.CreateConnection();
             await con.OpenAsync();
@@ -56,11 +60,11 @@ namespace Infraestructure.Repository
             {
                 cmd.CommandType = CommandType.StoredProcedure;
 
-                cmd.Parameters.Add(new SqlParameter("@NombreCategoria", categoria.NombreCategoria));
-                cmd.Parameters.Add(new SqlParameter("@IdEstado", categoria.IdEstado));
-
-
-                await cmd.ExecuteNonQueryAsync();
+                cmd.Parameters.Add(new SqlParameter("@NombreCategoria", categoria.NombreCategoria ?? string.Empty));
+                cmd.Parameters.Add(new SqlParameter("@IdEstado", categoria.IdEstado > 0 ? categoria.IdEstado : 1));
+                cmd.Parameters.Add(new SqlParameter("@Icono", (object?)categoria.Icono ?? DBNull.Value));
+                cmd.Parameters.Add(new SqlParameter("@Descripcion", (object?)categoria.Descripcion ?? DBNull.Value));
+                return Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
         }
         public async Task EditarCategoriaAsync(Categoria categoria)
@@ -75,6 +79,8 @@ namespace Infraestructure.Repository
                 cmd.Parameters.Add(new SqlParameter("IdCategoria", categoria.IdCategoria));
                 cmd.Parameters.Add(new SqlParameter("NombreCategoria", categoria.NombreCategoria));
                 cmd.Parameters.Add(new SqlParameter("IdEstado", categoria.IdEstado));
+                cmd.Parameters.Add(new SqlParameter("Icono", (object?)categoria.Icono ?? DBNull.Value));
+                cmd.Parameters.Add(new SqlParameter("Descripcion", (object?)categoria.Descripcion ?? DBNull.Value));
 
                 await cmd.ExecuteNonQueryAsync();
             }

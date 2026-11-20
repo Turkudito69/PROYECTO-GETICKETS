@@ -11,7 +11,7 @@ namespace Aplication.Interfaces
     {
         Task<IEnumerable<Tecnico>> ListarTecnicosAsync();
         Task EditarTecnicoAsync(Tecnico tecnico);
-        Task NuevoTecnicoAsync(Tecnico tecnico);
+        Task<int> NuevoTecnicoAsync(Tecnico tecnico);
         Task EliminarTecnicosAsync(int id);
     }
 }

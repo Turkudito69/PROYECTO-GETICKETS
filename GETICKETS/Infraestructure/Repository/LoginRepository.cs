@@ -19,9 +19,9 @@ namespace Infraestructure.Repository
         {
             dBConexion = baseRepository;
         }
-        public async Task<Login> LoginAsync(string correo, string contrasena)
+        public async Task<Login?> LoginAsync(string correo, string contrasena)
         {
-            Login resultado = new Login();
+            Login? resultado = null;
             await using SqlConnection conexion = dBConexion.CreateConnection();
             await using SqlCommand comando = new SqlCommand("SP_ValidarLogin", conexion);
             comando.CommandType = CommandType.StoredProcedure;
@@ -34,11 +34,18 @@ namespace Infraestructure.Repository
 
             if (await reader.ReadAsync())
             {
-                resultado = new Login
+                    resultado = new Login
                 {
+                        IdUsuario = Convert.ToInt32(reader["IdUsuario"]),
+                        IdRol = Convert.ToInt32(reader["IdRol"]),
+                        IdTecnico = reader["IdTecnico"] == DBNull.Value
+                            ? null
+                            : Convert.ToInt32(reader["IdTecnico"]),
+                        Correo = reader["Correo"]?.ToString(),
                     Nombre = reader["Nombre"]?.ToString(),
                     Apellido = reader["Apellido"]?.ToString(),
-                    Rol = reader["NombreRol"]?.ToString(),
+                        Rol = reader["Rol"]?.ToString(),
+                        FotoUrl = reader["FotoUrl"] == DBNull.Value ? null : reader["FotoUrl"]?.ToString(),
                 };
             }
 

@@ -11,7 +11,8 @@ namespace Aplication.Interfaces
     {
         Task<IEnumerable<Usuario>> ListarUsuariosAsync();
         Task EditarUsuarioAsync(Usuario usuario);
-        Task NuevoUsuarioAsync(Usuario usuario);
+        Task<int> NuevoUsuarioAsync(Usuario usuario);
+        Task ActualizarFotoUsuarioAsync(int idUsuario, string? fotoUrl);
         Task EliminarUsuariosAsync(int id);
     }
 }

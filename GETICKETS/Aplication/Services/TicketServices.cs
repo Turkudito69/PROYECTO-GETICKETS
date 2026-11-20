@@ -20,16 +20,21 @@ namespace Aplication.Services
             return listar.Select(a => new TicketDTO
             {
                 IdTicket = a.IdTicket,
+                IdUsuario = a.IdUsuario,
+                IdTecnico = a.IdTecnico,
                 Tickets = a.Tickets,
+                CodigoTicket = a.CodigoTicket,
                 Descripcion = a.Descripcion,
+                Solicitante = a.Solicitante,
                 Tecnico = a.Tecnico,
                 Categoria = a.Categoria,
                 Prioridad = a.Prioridad,
                 EstadoTicket = a.EstadoTicket,
-                FehaCreacion = a.FehaCreacion,
+                FechaCreacion = a.FechaCreacion,
+                FechaSolucion = a.FechaSolucion,
             });
         }
-        public async Task NuevaTicket(TicketDTO Dts)
+        public async Task<Ticket> NuevaTicket(TicketDTO Dts)
         {
             var oTicket = new Ticket
             {
@@ -41,7 +46,7 @@ namespace Aplication.Services
                 Prioridad = Dts.Prioridad,
                 EstadoTicket = Dts.EstadoTicket,
             };
-            await _Repository.NuevoTicketAsync(oTicket);
+            return await _Repository.NuevoTicketAsync(oTicket);
         }
         public async Task AsignarTicket(TicketDTO Dts)
         {
@@ -83,6 +88,25 @@ namespace Aplication.Services
                 Solucion = Dts.Solucion,
             };
             await _Repository.FinalizarTicketAsync(oTicket);
+        }
+
+        public Task ConfirmarCompletado(Ticket Dts)
+        {
+            return _Repository.ConfirmarCompletadoAsync(new Ticket
+            {
+                IdTicket = Dts.IdTicket,
+                IdUsuario = Dts.IdUsuario
+            });
+        }
+
+        public Task ReabrirTicket(Ticket Dts)
+        {
+            return _Repository.ReabrirTicketAsync(new Ticket
+            {
+                IdTicket = Dts.IdTicket,
+                IdUsuario = Dts.IdUsuario,
+                Motivo = Dts.Motivo
+            });
         }
     }
 

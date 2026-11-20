@@ -9,7 +9,7 @@ namespace Aplication.Interfaces
 {
     public interface ILoginRpository
     {
-        Task<Login> LoginAsync(string correo, string contrasena);
+        Task<Login?> LoginAsync(string correo, string contrasena);
 
     }
 }

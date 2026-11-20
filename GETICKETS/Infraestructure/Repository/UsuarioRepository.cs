@@ -34,14 +34,17 @@ namespace Infraestructure.Repository
                     Nombre = dr["Nombre"]?.ToString(),
                     Apellido = dr["Apellido"]?.ToString(),
                     Correo = dr["Correo"]?.ToString(),
+                    IdRol = Convert.ToInt32(dr["IdRol"]),
+                    IdEstado = Convert.ToInt32(dr["IdEstado"]),
                     Rol = dr["Rol"]?.ToString(),
-                    Estado = dr["Estado"]?.ToString()
+                    Estado = dr["Estado"]?.ToString(),
+                    FotoUrl = dr["FotoUrl"] == DBNull.Value ? null : dr["FotoUrl"]?.ToString()
                 });
             }
             return usuarios;
         }
 
-        public async Task NuevoUsuarioAsync(Usuario usuario)
+        public async Task<int> NuevoUsuarioAsync(Usuario usuario)
         {
             using var con = dBConexion.CreateConnection();
             await con.OpenAsync();
@@ -54,7 +57,8 @@ namespace Infraestructure.Repository
             cmd.Parameters.Add(new SqlParameter("@Correo", usuario.Correo ?? (object)DBNull.Value));
             cmd.Parameters.Add(new SqlParameter("@Contrasena", usuario.Contrasena ?? (object)DBNull.Value));
             cmd.Parameters.Add(new SqlParameter("@IdRol", usuario.IdRol));
-            await cmd.ExecuteNonQueryAsync();
+            cmd.Parameters.Add(new SqlParameter("@FotoUrl", (object?)usuario.FotoUrl ?? DBNull.Value));
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync());
         }
 
         public async Task EditarUsuarioAsync(Usuario usuario)
@@ -72,6 +76,20 @@ namespace Infraestructure.Repository
             cmd.Parameters.Add(new SqlParameter("@Contrasena", usuario.Contrasena ?? (object)DBNull.Value));
             cmd.Parameters.Add(new SqlParameter("@IdRol", usuario.IdRol));
             cmd.Parameters.Add(new SqlParameter("@IdEstado", usuario.IdEstado));
+            cmd.Parameters.Add(new SqlParameter("@FotoUrl", (object?)usuario.FotoUrl ?? DBNull.Value));
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task ActualizarFotoUsuarioAsync(int idUsuario, string? fotoUrl)
+        {
+            using var con = dBConexion.CreateConnection();
+            await con.OpenAsync();
+            using var cmd = new SqlCommand("SP_ActualizarFotoUsuario", con)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            cmd.Parameters.Add(new SqlParameter("@IdUsuario", idUsuario));
+            cmd.Parameters.Add(new SqlParameter("@FotoUrl", (object?)fotoUrl ?? DBNull.Value));
             await cmd.ExecuteNonQueryAsync();
         }
 

@@ -11,7 +11,7 @@ namespace Aplication.Interfaces
     {
         Task<IEnumerable<Rol>> ListarRolesAsync();
         Task EditarRolAsync(Rol rol);
-        Task NuevoRolAsync(Rol rol);
+        Task<int> NuevoRolAsync(Rol rol);
         Task EliminarRolesAsync(int id);
     }
 }

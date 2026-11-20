@@ -11,7 +11,7 @@ namespace Aplication.Interfaces
     {
         Task<IEnumerable<Categoria>> ListarCategoriasAsync();
         Task EditarCategoriaAsync(Categoria categoria);
-        Task NuevaCategoriaAsync(Categoria categoria);
+        Task<int> NuevaCategoriaAsync(Categoria categoria);
         Task EliminarCategoriasAsync(int id);
     }
 }

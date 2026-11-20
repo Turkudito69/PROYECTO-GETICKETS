@@ -23,10 +23,15 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                if (!await _services.LoginAsync(dto))
+                var usuario = await _services.LoginAsync(dto);
+                if (usuario is null)
                     return Unauthorized(new { mensaje = "Correo o contraseña incorrectos." });
 
-                return Ok(new { mensaje = "Inicio de sesión correcto." });
+                return Ok(new
+                {
+                    mensaje = "Inicio de sesión correcto.",
+                    usuario
+                });
             }
             catch (Exception ex)
             {

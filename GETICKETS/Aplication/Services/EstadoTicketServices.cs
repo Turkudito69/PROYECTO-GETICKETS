@@ -25,7 +25,7 @@ namespace Aplication.Services
             });
         }
 
-        public Task NuevoEstadoTicket(EstadoTicketDTO dto)
+        public Task<int> NuevoEstadoTicket(EstadoTicketDTO dto)
         {
             return _repository.NuevoEstadoTicketAsync(new EstadoTicket
             {

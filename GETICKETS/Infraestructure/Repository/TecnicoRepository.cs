@@ -40,6 +40,10 @@ namespace Infraestructure.Repository
                             Apellido = dr["Apellido"].ToString(),
                             Correo = dr["correo"].ToString(),
                             Especialidad = dr["Especialidad"].ToString(),
+                            IdUsuario = Convert.ToInt32(dr["IdUsuario"]),
+                            IdEstado = Convert.ToInt32(dr["IdEstado"]),
+                            Usuario = dr["Usuario"].ToString(),
+                            FotoUrl = dr["FotoUrl"] == DBNull.Value ? null : dr["FotoUrl"].ToString(),
                             Estado = dr["Estado"].ToString(),
                         });
                     }
@@ -48,7 +52,7 @@ namespace Infraestructure.Repository
             return oAuditoria;
         }
 
-        public async Task NuevoTecnicoAsync(Tecnico tecnico)
+        public async Task<int> NuevoTecnicoAsync(Tecnico tecnico)
         {
             using var con = dBConexion.CreateConnection();
             await con.OpenAsync();
@@ -60,7 +64,7 @@ namespace Infraestructure.Repository
                 cmd.Parameters.Add(new SqlParameter("@Especialidad", (object?)tecnico.Especialidad ?? DBNull.Value));
                 cmd.Parameters.Add(new SqlParameter("@Correo", (object?)tecnico.Correo ?? DBNull.Value));
                 cmd.Parameters.Add(new SqlParameter("@IdUsuario", tecnico.IdUsuario ?? (object)DBNull.Value));
-                await cmd.ExecuteNonQueryAsync();
+                return Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
         }
 

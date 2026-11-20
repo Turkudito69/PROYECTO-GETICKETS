@@ -30,19 +30,26 @@ namespace Infraestructure.Repository
                 tickets.Add(new Ticket
                 {
                     IdTicket = Convert.ToInt32(dr["IdTicket"]),
+                    IdUsuario = Convert.ToInt32(dr["IdUsuario"]),
+                    IdTecnico = dr["IdTecnico"] == DBNull.Value
+                        ? null
+                        : Convert.ToInt32(dr["IdTecnico"]),
                     Descripcion = dr["Descripcion"]?.ToString(),
                     Tickets = dr["Ticket"]?.ToString(),
+                    Solicitante = dr["Solicitante"]?.ToString(),
                     Tecnico = dr["Tecnico"]?.ToString(),
                     Categoria = dr["Categoria"]?.ToString(),
                     Prioridad = dr["Prioridad"]?.ToString(),
                     EstadoTicket = dr["EstadoTicket"]?.ToString(),
-                    FehaCreacion = Convert.ToDateTime(dr["FechaCreacion"])
+                    FechaCreacion = Convert.ToDateTime(dr["FechaCreacion"]),
+                    FechaSolucion = dr["FechaSolucion"] == DBNull.Value ? null : Convert.ToDateTime(dr["FechaSolucion"]),
+                    CodigoTicket = dr["CodigoTicket"]?.ToString()
                 });
             }
             return tickets;
         }
 
-        public async Task NuevoTicketAsync(Ticket ticket)
+        public async Task<Ticket> NuevoTicketAsync(Ticket ticket)
         {
             using var con = dBConexion.CreateConnection();
             await con.OpenAsync();
@@ -53,7 +60,14 @@ namespace Infraestructure.Repository
                 cmd.Parameters.Add(new SqlParameter("@IdUsuario", ticket.IdUsuario));
                 cmd.Parameters.Add(new SqlParameter("@IdCategoria", ticket.IdCategoria));
                 cmd.Parameters.Add(new SqlParameter("@IdPrioridad", ticket.IdPrioridad));
-                await cmd.ExecuteNonQueryAsync();
+                using var dr = await cmd.ExecuteReaderAsync();
+                if (!await dr.ReadAsync())
+                    throw new InvalidOperationException("No se recibió el ticket creado desde la base de datos.");
+                return new Ticket
+                {
+                    IdTicket = Convert.ToInt32(dr["IdTicket"]),
+                    CodigoTicket = dr["CodigoTiket"]?.ToString()
+                };
             }
         }
 
@@ -65,7 +79,7 @@ namespace Infraestructure.Repository
             {
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add(new SqlParameter("@IdTicket", ticket.IdTicket));
-                cmd.Parameters.Add(new SqlParameter("@IdTecnico", ticket.IdTecnico));
+                cmd.Parameters.Add(new SqlParameter("@IdTecnico", (object?)ticket.IdTecnico ?? DBNull.Value));
                 cmd.Parameters.Add(new SqlParameter("@IdUsuario", ticket.IdUsuario));
                 await cmd.ExecuteNonQueryAsync();
             }
@@ -111,6 +125,33 @@ namespace Infraestructure.Repository
                 cmd.Parameters.Add(new SqlParameter("@Solucion", ticket.Solucion ?? (object)DBNull.Value));
                 await cmd.ExecuteNonQueryAsync();
             }
+        }
+
+        public async Task ConfirmarCompletadoAsync(Ticket ticket)
+        {
+            using var con = dBConexion.CreateConnection();
+            await con.OpenAsync();
+            using var cmd = new SqlCommand("SP_ConfirmarCompletado", con)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            cmd.Parameters.Add(new SqlParameter("@IdTicket", ticket.IdTicket));
+            cmd.Parameters.Add(new SqlParameter("@IdUsuario", ticket.IdUsuario));
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task ReabrirTicketAsync(Ticket ticket)
+        {
+            using var con = dBConexion.CreateConnection();
+            await con.OpenAsync();
+            using var cmd = new SqlCommand("SP_ReabrirTicket", con)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            cmd.Parameters.Add(new SqlParameter("@IdTicket", ticket.IdTicket));
+            cmd.Parameters.Add(new SqlParameter("@IdUsuario", ticket.IdUsuario));
+            cmd.Parameters.Add(new SqlParameter("@Motivo", ticket.Motivo ?? string.Empty));
+            await cmd.ExecuteNonQueryAsync();
         }
 
     }

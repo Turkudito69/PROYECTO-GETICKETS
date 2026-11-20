@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Infraestructure.Repository
@@ -37,7 +38,12 @@ namespace Infraestructure.Repository
                         {
                             IdRol = Convert.ToInt32(dr["IdRol"]),
                             NombreRol = dr["NombreRol"].ToString(),
-                            Estado = dr["Nombre"].ToString(),   
+                            IdEstado = Convert.ToInt32(dr["IdEstado"]),
+                            Descripcion = dr["Descripcion"] == DBNull.Value ? null : dr["Descripcion"].ToString(),
+                            Permisos = dr["Permisos"] == DBNull.Value
+                                ? new List<string>()
+                                : JsonSerializer.Deserialize<List<string>>(dr["Permisos"].ToString() ?? "[]") ?? new List<string>(),
+                            Estado = dr["Estado"].ToString(),
                         });
                     }
                 }
@@ -45,7 +51,7 @@ namespace Infraestructure.Repository
             return oPrioridad;
         }
 
-        public async Task NuevoRolAsync(Rol rol)
+        public async Task<int> NuevoRolAsync(Rol rol)
         {
             using var con = dBConexion.CreateConnection();
             await con.OpenAsync();
@@ -54,8 +60,10 @@ namespace Infraestructure.Repository
             {
                 cmd.CommandType = CommandType.StoredProcedure;
 
-                cmd.Parameters.Add(new SqlParameter("NombreRol", rol.NombreRol));
-                await cmd.ExecuteNonQueryAsync();
+                cmd.Parameters.Add(new SqlParameter("@NombreRol", rol.NombreRol ?? string.Empty));
+                cmd.Parameters.Add(new SqlParameter("@Descripcion", (object?)rol.Descripcion ?? DBNull.Value));
+                cmd.Parameters.Add(new SqlParameter("@Permisos", (object?) (rol.Permisos is null ? null : JsonSerializer.Serialize(rol.Permisos)) ?? DBNull.Value));
+                return Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
         }
         public async Task EditarRolAsync(Rol rol)
@@ -70,6 +78,8 @@ namespace Infraestructure.Repository
                 cmd.Parameters.Add(new SqlParameter("IdRol", rol.IdRol));
                 cmd.Parameters.Add(new SqlParameter("NombreRol", rol.NombreRol));
                 cmd.Parameters.Add(new SqlParameter("IdEstado", rol.IdEstado));
+                cmd.Parameters.Add(new SqlParameter("Descripcion", (object?)rol.Descripcion ?? DBNull.Value));
+                cmd.Parameters.Add(new SqlParameter("Permisos", (object?) (rol.Permisos is null ? null : JsonSerializer.Serialize(rol.Permisos)) ?? DBNull.Value));
                 await cmd.ExecuteNonQueryAsync();
             }
         }

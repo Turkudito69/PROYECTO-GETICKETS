@@ -11,7 +11,7 @@ namespace Aplication.Interfaces
     {
         Task<IEnumerable<EstadoTicket>> ListarEstadosTicketAsync();
         Task EditarEstadoTicketAsync(EstadoTicket estadoTicket);
-        Task NuevoEstadoTicketAsync(EstadoTicket estadoTicket);
+        Task<int> NuevoEstadoTicketAsync(EstadoTicket estadoTicket);
         Task EliminarEstadosTicketAsync(int id);
     }
 }

@@ -29,6 +29,7 @@ namespace Presentation.Controllers
             }
         }
 
+        [HttpPost]
         [HttpPost("Insertar rol")]
         public async Task<IActionResult> InsertarRol([FromBody] RolDTO dto)
         {
@@ -37,8 +38,8 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                await _services.NuevaRol(dto);
-                return StatusCode(201, "Rol agregado correctamente");
+                var idRol = await _services.NuevaRol(dto);
+                return StatusCode(201, new { mensaje = "Rol agregado correctamente.", idRol });
             }
             catch (Exception ex)
             {
@@ -54,8 +55,9 @@ namespace Presentation.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(new { msj = "El modelo no es válido" });
 
-                if (id != dto.IdRol)
+                if (dto.IdRol != 0 && id != dto.IdRol)
                     return BadRequest(new { msj = "El id no coincide" });
+                dto.IdRol = id;
 
                 await _services.EditarRol(dto);
                 return NoContent();
