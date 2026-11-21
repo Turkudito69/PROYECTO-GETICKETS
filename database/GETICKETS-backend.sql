@@ -132,6 +132,7 @@ BEGIN
 END;
 GO
 
+
 CREATE OR ALTER PROCEDURE dbo.SP_ActualizarUsuario
     @IdUsuario INT,
     @Nombre VARCHAR(100),
@@ -730,4 +731,9 @@ BEGIN
         THROW;
     END CATCH
 END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Tbl_Migracion WHERE Version = '001_backend_procedures')
+    INSERT INTO dbo.Tbl_Migracion (Version, Nombre)
+    VALUES ('001_backend_procedures', N'Procedimientos almacenados de la API');
 GO

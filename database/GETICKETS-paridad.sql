@@ -220,6 +220,11 @@ BEGIN TRY
     IF NOT EXISTS (SELECT 1 FROM dbo.Tbl_Usuario WHERE Correo = 'tecnico@getickets.test')
         EXEC dbo.SP_NuevoUsuario @Nombre = 'Tecnico', @Apellido = 'GETICKETS', @Correo = 'tecnico@getickets.test', @Contrasena = 'Tecnico123!', @IdRol = @TechRoleId;
 
+    IF EXISTS (SELECT 1 FROM dbo.Tbl_Usuario WHERE Correo = 'demo@getickets.test' AND IdRol <> @UserRoleId)
+        THROW 51008, N'El correo demo@getickets.test ya existe con otro rol.', 1;
+    IF NOT EXISTS (SELECT 1 FROM dbo.Tbl_Usuario WHERE Correo = 'demo@getickets.test')
+        EXEC dbo.SP_NuevoUsuario @Nombre = 'Usuario', @Apellido = 'Demo', @Correo = 'demo@getickets.test', @Contrasena = 'Usuario123!', @IdRol = @UserRoleId;
+
     DECLARE @TechUserId INT = (SELECT IdUsuario FROM dbo.Tbl_Usuario WHERE Correo = 'tecnico@getickets.test');
     IF NOT EXISTS (SELECT 1 FROM dbo.Tbl_Tecnico WHERE IdUsuario = @TechUserId)
         EXEC dbo.SP_NuevoTecnico @Especialidad = 'Soporte general', @Correo = 'tecnico@getickets.test', @IdUsuario = @TechUserId;
@@ -288,5 +293,7 @@ BEGIN CATCH
     THROW;
 END CATCH;
 
-
-
+IF NOT EXISTS (SELECT 1 FROM dbo.Tbl_Migracion WHERE Version = '002_paridad')
+    INSERT INTO dbo.Tbl_Migracion (Version, Nombre)
+    VALUES ('002_paridad', N'Migracion de paridad, permisos, catalogos y puestos');
+GO

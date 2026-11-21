@@ -19,6 +19,10 @@ import { Platform } from 'react-native';
 
 const defaultApiUrl = Platform.OS === 'android' ? 'http://10.0.2.2:5116' : 'http://localhost:5116';
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || defaultApiUrl).replace(/\/$/, '');
+const defaultOffice3dUrl = Platform.OS === 'android'
+  ? 'http://10.0.2.2:3000/office3d-embed'
+  : 'http://localhost:3000/office3d-embed';
+export const OFFICE_3D_URL = (process.env.EXPO_PUBLIC_OFFICE_3D_URL || defaultOffice3dUrl).replace(/\/$/, '');
 
 type ApiErrorBody = { msj?: string; mensaje?: string; error?: string };
 

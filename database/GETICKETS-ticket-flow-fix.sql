@@ -125,3 +125,8 @@ BEGIN
     END CATCH
 END;
 GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Tbl_Migracion WHERE Version = '003_ticket_flow_fix')
+    INSERT INTO dbo.Tbl_Migracion (Version, Nombre)
+    VALUES ('003_ticket_flow_fix', N'Correcciones al seguimiento y resolucion de tickets');
+GO

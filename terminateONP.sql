@@ -1,4 +1,6 @@
-﻿create database GETICKETS
+-- SCRIPT LEGACY: conservado como referencia historica.
+-- Para instalar desde cero, usar database/Install-GETICKETS.ps1.
+create database GETICKETS
 go
 
 use GETICKETS

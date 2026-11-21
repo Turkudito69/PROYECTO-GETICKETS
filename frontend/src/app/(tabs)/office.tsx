@@ -6,7 +6,7 @@ import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import { Text, AppTextInput as TextInput } from '../../components/Typography';
 import { useSession } from '../../context/SessionContext';
-import { API_URL, api } from '../../lib/api';
+import { api, OFFICE_3D_URL } from '../../lib/api';
 import { initials, visibleTicketsFor } from '../../lib/tickets';
 import { colors, getThemeColors, radius, space } from '../../theme';
 import { useReducedMotion } from '../../lib/motion';
@@ -149,7 +149,7 @@ export default function OfficeScreen() {
                 ? <OfficeScene seats={filtered} tickets={tickets} technicians={technicians} selectedSeatId={selectedSeat?.idPuesto ?? null} onSelectSeat={chooseSeat} height={sceneHeight} />
                 : <WebView
                     key={zone}
-                    source={{ uri: `${API_URL}/office3d-embed?zone=${encodeURIComponent(zone)}` }}
+                    source={{ uri: `${OFFICE_3D_URL}?zone=${encodeURIComponent(zone)}` }}
                     javaScriptEnabled
                     domStorageEnabled
                     originWhitelist={['*']}
