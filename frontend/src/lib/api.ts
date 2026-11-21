@@ -18,7 +18,7 @@ import type {
 import { Platform } from 'react-native';
 
 const defaultApiUrl = Platform.OS === 'android' ? 'http://10.0.2.2:5116' : 'http://localhost:5116';
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || defaultApiUrl).replace(/\/$/, '');
+export const API_URL = (process.env.EXPO_PUBLIC_API_URL || defaultApiUrl).replace(/\/$/, '');
 
 type ApiErrorBody = { msj?: string; mensaje?: string; error?: string };
 
@@ -79,11 +79,17 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function normalizeTicket(value: unknown): TicketItem {
   const item = asRecord(value);
+  const codigoTicket = stringValue(item.codigoTicket ?? item.CodigoTicket ?? item.tickets ?? item.Tickets ?? item.ticket ?? item.Ticket);
   return {
     idTicket: numberValue(item.idTicket ?? item.IdTicket),
     idUsuario: numberValue(item.idUsuario ?? item.IdUsuario),
     idTecnico: nullableNumber(item.idTecnico ?? item.IdTecnico),
-    tickets: stringValue(item.tickets ?? item.Tickets ?? item.ticket ?? item.Ticket ?? item.codigoTicket),
+    idCategoria: numberValue(item.idCategoria ?? item.IdCategoria),
+    idPrioridad: numberValue(item.idPrioridad ?? item.IdPrioridad),
+    idEstadoTicket: numberValue(item.idEstadoTicket ?? item.IdEstadoTicket),
+    codigoTicket,
+    fechaSolucion: stringValue(item.fechaSolucion ?? item.FechaSolucion) || null,
+    tickets: codigoTicket,
     descripcion: stringValue(item.descripcion ?? item.Descripcion),
     solicitante: stringValue(item.solicitante ?? item.Solicitante),
     tecnico: (item.tecnico ?? item.Tecnico) == null ? null : stringValue(item.tecnico ?? item.Tecnico),
@@ -184,6 +190,7 @@ export const api = {
     const item = asRecord(first);
     return {
       ...normalizeTicket(item),
+      codigoTicket: stringValue(item.codigoTicket ?? item.CodigoTicket ?? item.tickets ?? item.Ticket),
       tickets: stringValue(item.codigoTicket ?? item.CodigoTicket ?? item.tickets ?? item.Ticket),
       fechaSolucion: stringValue(item.fechaSolucion ?? item.FechaSolucion) || null,
     };
@@ -347,11 +354,14 @@ export const api = {
   reopenTicket: (payload: { idTicket: number; idUsuario: number; motivo: string }) =>
     request<void>('/api/Ticket/Reabrir', { method: 'PUT', body: JSON.stringify(payload) }),
 
-  createUsuario: (payload: { nombre: string; apellido: string; correo: string; contrasena: string; idRol: number; asignarPuesto?: boolean; idPuesto?: number | null; idUsuarioAccion?: number }) =>
+  createUsuario: (payload: { nombre: string; apellido: string; correo: string; contrasena: string; idRol: number; fotoUrl?: string | null; asignarPuesto?: boolean; idPuesto?: number | null; idUsuarioAccion?: number }) =>
     request<{ mensaje: string; idUsuario: number; idPuesto: number | null }>('/api/Usuario', { method: 'POST', body: JSON.stringify(payload) }),
 
-  updateUsuario: (id: number, payload: { nombre: string; apellido: string; correo: string; contrasena?: string; idRol: number; idEstado: number }) =>
+  updateUsuario: (id: number, payload: { nombre: string; apellido: string; correo: string; contrasena?: string; idRol: number; idEstado: number; fotoUrl?: string | null }) =>
     request<void>(`/api/Usuario/Editar/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+
+  updateUsuarioFoto: (id: number, fotoUrl: string | null) =>
+    request<void>(`/api/Usuario/Foto/${id}`, { method: 'PUT', body: JSON.stringify({ fotoUrl }) }),
 
   deleteUsuario: (id: number) => request<void>(`/api/Usuario/Eliminar/${id}`, { method: 'DELETE' }),
 

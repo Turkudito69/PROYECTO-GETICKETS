@@ -1,19 +1,23 @@
 import { useCallback, useState } from 'react';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/Icons';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '../../components/Typography';
 import { useSession } from '../../context/SessionContext';
 import { api } from '../../lib/api';
-import { colors, space } from '../../theme';
+import { visibleTicketsFor } from '../../lib/tickets';
+import { categoryIconFor } from '../../lib/statusUtils';
+import { colors, getThemeColors, space } from '../../theme';
 import type { ActivityItem, TechnicianItem, TicketDetail } from '../../types';
 import { AnimatedEntry, Button, EmptyState, Field, LoadingState, Notice, Screen, StatusPill, Surface, formatDate } from '../../components/ui';
+import { useFocusedPolling } from '../../hooks/useFocusedPolling';
 
 export default function TicketDetailScreen() {
   const { id: routeId, created } = useLocalSearchParams<{ id: string; created?: string }>();
   const id = Number(routeId);
   const { width } = useWindowDimensions();
-  const { user } = useSession();
+  const { user, darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [technicians, setTechnicians] = useState<TechnicianItem[]>([]);
@@ -32,11 +36,19 @@ export default function TicketDetailScreen() {
     if (!quiet) setLoading(true);
     setError(null);
     try {
-      const [allTickets, detail, history, techList] = await Promise.all([
-        api.getTickets(), api.getTicketDetail(id), api.getSeguimiento(id),
+      const allTickets = await api.getTickets();
+      const base = allTickets.find((item) => item.idTicket === id);
+      if (!base || visibleTicketsFor(user, [base]).length === 0) {
+        setTicket(null);
+        setActivities([]);
+        setTechnicians([]);
+        setError('Esta solicitud no está disponible para tu perfil.');
+        return;
+      }
+      const [detail, history, techList] = await Promise.all([
+        api.getTicketDetail(id), api.getSeguimiento(id),
         user.rol === 'Administrador' ? api.getTecnicos() : Promise.resolve([] as TechnicianItem[]),
       ]);
-      const base = allTickets.find((item) => item.idTicket === id);
       setTicket(detail ? { ...detail, ...base, ...detail, idUsuario: base?.idUsuario ?? detail.idUsuario, idTecnico: base?.idTecnico ?? detail.idTecnico } : base ?? null);
       setActivities(history);
       setTechnicians(techList.filter((item) => !item.estado || item.estado.toLocaleLowerCase() === 'activo'));
@@ -46,6 +58,28 @@ export default function TicketDetailScreen() {
   }, [id, user]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  const refreshLiveTicket = useCallback(async () => {
+    if (!user || !id) return;
+    try {
+      const allTickets = await api.getTickets();
+      const base = allTickets.find((item) => item.idTicket === id);
+      if (!base || visibleTicketsFor(user, [base]).length === 0) {
+        setTicket(null);
+        setActivities([]);
+        setError('Esta solicitud no está disponible para tu perfil.');
+        return;
+      }
+      const [detail, history] = await Promise.all([api.getTicketDetail(id), api.getSeguimiento(id)]);
+      setTicket(detail ? {
+        ...base,
+        ...detail,
+        idUsuario: base?.idUsuario ?? detail.idUsuario,
+        idTecnico: base?.idTecnico ?? detail.idTecnico,
+      } : base ?? null);
+      setActivities(history);
+    } catch { /* Do not replace a loaded detail with an intermittent polling error. */ }
+  }, [id, user]);
+  useFocusedPolling(refreshLiveTicket, 4000);
   if (!user) return <Redirect href="/login" />;
 
   const status = ticket?.estadoTicket.toLocaleLowerCase() ?? '';
@@ -81,7 +115,7 @@ export default function TicketDetailScreen() {
         <Surface style={styles.summary}>
           <Text style={styles.description}>{ticket.descripcion || 'Sin descripción registrada.'}</Text>
           <View style={styles.separator} />
-          <DetailRow icon="grid-outline" label="Categoría" value={ticket.categoria || 'Sin categoría'} />
+          <DetailRow icon={categoryIconFor(ticket.categoria)} label="Categoría" value={ticket.categoria || 'Sin categoría'} />
           <DetailRow icon="flag-outline" label="Prioridad" value={ticket.prioridad || 'Sin prioridad'} />
           <DetailRow icon="calendar-outline" label="Fecha de creación" value={formatDate(ticket.fechaCreacion)} />
           {ticket.fechaSolucion ? <DetailRow icon="checkmark-circle-outline" label="Fecha de solución" value={formatDate(ticket.fechaSolucion)} /> : null}
@@ -93,7 +127,7 @@ export default function TicketDetailScreen() {
           <Text style={styles.sectionTitle}>Asignar técnico</Text><Text style={styles.hint}>Selecciona quién atenderá este caso.</Text>
           {technicians.length ? <View style={styles.technicianList}>{technicians.map((tech) => {
             const selected = selectedTechnician === tech.idTecnico;
-            return <Pressable key={tech.idTecnico} onPress={() => setSelectedTechnician(tech.idTecnico)} style={[styles.technician, selected && styles.technicianSelected]}><Ionicons name={selected ? 'radio-button-on' : 'radio-button-off'} size={18} color={selected ? colors.primaryDark : colors.muted} /><View style={styles.techText}><Text style={styles.techName}>{tech.nombre} {tech.apellido}</Text><Text style={styles.techSpecialty}>{tech.especialidad || tech.correo}</Text></View></Pressable>;
+            return <Pressable key={tech.idTecnico} onPress={() => setSelectedTechnician(tech.idTecnico)} style={[styles.technician, { backgroundColor: selected ? palette.skySoft : palette.surfaceSoft, borderColor: selected ? colors.primary : palette.line }]}><Ionicons name={selected ? 'radio-button-on' : 'radio-button-off'} size={18} color={selected ? colors.primaryDark : palette.muted} /><View style={styles.techText}><Text style={styles.techName}>{tech.nombre} {tech.apellido}</Text><Text style={styles.techSpecialty}>{tech.especialidad || tech.correo}</Text></View></Pressable>;
           })}</View> : <Text style={styles.hint}>No hay técnicos activos devueltos por la API.</Text>}
           <Button onPress={() => selectedTechnician && void perform(() => api.assignTicket({ idTicket: id, idTecnico: selectedTechnician, idUsuario: user.idUsuario }), 'Técnico asignado correctamente.')} loading={actionLoading} disabled={!selectedTechnician} icon="person-add-outline">Asignar ticket</Button>
         </Surface> : null}
@@ -147,7 +181,9 @@ export default function TicketDetailScreen() {
 }
 
 function DetailRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
-  return <View style={styles.detailRow}><View style={styles.detailIcon}><Ionicons name={icon} size={16} color={colors.primaryDark} /></View><View style={styles.detailText}><Text style={styles.detailLabel}>{label}</Text><Text style={styles.detailValue}>{value}</Text></View></View>;
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
+  return <View style={styles.detailRow}><View style={[styles.detailIcon, { backgroundColor: palette.skySoft }]}><Ionicons name={icon} size={16} color={colors.primaryDark} /></View><View style={styles.detailText}><Text style={styles.detailLabel}>{label}</Text><Text style={styles.detailValue}>{value}</Text></View></View>;
 }
 
 const progressSteps = [
@@ -159,6 +195,8 @@ const progressSteps = [
 ];
 
 function TicketProgress({ status, width }: { status: string; width: number }) {
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
   const normalized = status.toLocaleLowerCase();
   const activeIndex = normalized.includes('complet') || normalized.includes('cerrad') ? 4
     : normalized.includes('resuelt') ? 3
@@ -172,9 +210,9 @@ function TicketProgress({ status, width }: { status: string; width: number }) {
         const reached = index <= activeIndex;
         return <View key={step.label} style={styles.progressItem} accessibilityLabel={`${step.label}: ${reached ? 'alcanzado' : 'pendiente'}`}>
           <View style={styles.progressNodeLine}>
-            {index > 0 ? <View style={[styles.progressConnector, index <= activeIndex && styles.progressConnectorActive]} /> : null}
-            <View style={[styles.progressNode, reached && styles.progressNodeActive]}><Text style={[styles.progressNumber, reached && styles.progressNumberActive]}>{index + 1}</Text></View>
-            {index < progressSteps.length - 1 ? <View style={[styles.progressConnector, index < activeIndex && styles.progressConnectorActive]} /> : null}
+            {index > 0 ? <View style={[styles.progressConnector, { backgroundColor: index <= activeIndex ? colors.primary : palette.line }]} /> : null}
+            <View style={[styles.progressNode, { backgroundColor: reached ? colors.primary : palette.surfaceSoft, borderColor: reached ? colors.primary : palette.line }]}><Text style={[styles.progressNumber, reached && styles.progressNumberActive]}>{index + 1}</Text></View>
+            {index < progressSteps.length - 1 ? <View style={[styles.progressConnector, { backgroundColor: index < activeIndex ? colors.primary : palette.line }]} /> : null}
           </View>
           <Text style={[styles.progressLabel, reached && styles.progressLabelActive]} numberOfLines={1}>{step.label}</Text>
           <Text style={styles.progressHint} numberOfLines={1}>{step.hint}</Text>

@@ -225,22 +225,32 @@ BEGIN
 
         SELECT
             tk.IdTicket,
+            tk.IdUsuario,
+            tk.IdTecnico,
+            tk.IdCategoria,
+            ISNULL(tk.IdPrioridad, 0) AS IdPrioridad,
+            tk.IdEstadoTicket,
+            tk.CodigoTiket AS CodigoTicket,
             tk.CodigoTiket AS Ticket,
             tk.Descripcion,
+            solicitante.Nombre + ' ' + solicitante.Apellido AS Solicitante,
             u.Nombre + ' ' + u.Apellido AS Tecnico,
             cat.NombreCategoria AS Categoria,
             pr.NombrePrioridad AS Prioridad,
             et.NombreEstado AS EstadoTicket,
-            tk.FechaCreacion
+            tk.FechaCreacion,
+            tk.Fechaesolucion AS FechaSolucion
 
         FROM Tbl_Ticket AS tk
         LEFT JOIN Tbl_Tecnico AS tc
             ON tk.IdTecnico = tc.IdTecnico
         LEFT JOIN Tbl_Usuario AS u
             ON tc.IdUsuario = u.IdUsuario
+        INNER JOIN Tbl_Usuario AS solicitante
+            ON tk.IdUsuario = solicitante.IdUsuario
         INNER JOIN Tbl_Categoria AS cat
             ON tk.IdCategoria = cat.IdCategoria
-        INNER JOIN Tbl_Prioridad AS pr
+        LEFT JOIN Tbl_Prioridad AS pr
             ON tk.IdPrioridad = pr.IdPrioridad
         INNER JOIN Tbl_EstadoTicket AS et
             ON tk.IdEstadoTicket = et.IdEstadoTicket;
@@ -1012,71 +1022,62 @@ BEGIN
     BEGIN TRY
         BEGIN TRAN;
 
-        -- Validar que exista el ticket
-        IF NOT EXISTS (SELECT 1 FROM Tbl_Ticket WHERE IdTicket = @IdTicket)
-        BEGIN
-            RAISERROR('El ticket no existe', 16, 1);
-        END;
-        -- Validar que el usuario sea el tecnico asignado
-        IF NOT EXISTS (SELECT 1 FROM Tbl_Ticket tk INNER JOIN Tbl_Tecnico te ON tk.IdTecnico = te.IdTecnico WHERE tk.IdTicket = @IdTicket AND te.IdUsuario = @IdUsuario)
-        BEGIN
-            RAISERROR(
-                'El usuario no es el tecnico asignado al ticket',
-                16, 1
-            );
-        END;
-        -- Validar que el ticket este En Proceso
-        IF NOT EXISTS (SELECT 1 FROM Tbl_Ticket WHERE IdTicket = @IdTicket AND IdEstadoTicket = 3)
-        BEGIN
-            RAISERROR(
-                'El ticket debe estar En Proceso para finalizar',
-                16, 1
-            );
-        END;
-        -- Validar diagnostico
+        DECLARE @IdEstadoActual INT,
+                @IdEstadoEnProceso INT,
+                @IdEstadoResuelto INT,
+                @IdDetalleTicket INT;
+
+        SELECT @IdEstadoActual = IdEstadoTicket
+        FROM dbo.Tbl_Ticket WITH (UPDLOCK, HOLDLOCK)
+        WHERE IdTicket = @IdTicket;
+        IF @IdEstadoActual IS NULL
+            THROW 51144, N'El ticket no existe.', 1;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM dbo.Tbl_Ticket AS tk
+            INNER JOIN dbo.Tbl_Tecnico AS te ON te.IdTecnico = tk.IdTecnico
+            INNER JOIN dbo.Tbl_Usuario AS u ON u.IdUsuario = te.IdUsuario
+            WHERE tk.IdTicket = @IdTicket
+              AND te.IdUsuario = @IdUsuario
+              AND te.IdEstado = 1
+              AND u.IdEstado = 1
+        )
+            THROW 51145, N'El usuario no es el técnico asignado al ticket.', 1;
+
+        SELECT @IdEstadoEnProceso = IdEstadoTicket FROM dbo.Tbl_EstadoTicket WHERE NombreEstado = 'En Proceso';
+        SELECT @IdEstadoResuelto = IdEstadoTicket FROM dbo.Tbl_EstadoTicket WHERE NombreEstado = 'Resuelto';
+        IF @IdEstadoEnProceso IS NULL OR @IdEstadoResuelto IS NULL
+            THROW 51146, N'Faltan los estados En Proceso o Resuelto.', 1;
+        IF @IdEstadoActual <> @IdEstadoEnProceso
+            THROW 51147, N'El ticket debe estar En Proceso para registrar la solución.', 1;
         IF NULLIF(LTRIM(RTRIM(@Diagnostico)), '') IS NULL
-        BEGIN
-            RAISERROR(
-                'El diagnostico es obligatorio',
-                16, 1
-            );
-        END;
-        -- Validar solucion
+            THROW 51148, N'El diagnóstico es obligatorio.', 1;
         IF NULLIF(LTRIM(RTRIM(@Solucion)), '') IS NULL
-        BEGIN
-            RAISERROR(
-                'La solucion es obligatoria',
-                16, 1
-            );
-        END;
-        -- Evitar duplicar el detalle tecnico
-        IF EXISTS (SELECT 1FROM Tbl_DetalleTicket WITH (UPDLOCK, HOLDLOCK)WHERE IdTicket = @IdTicket)
-        BEGIN
-            RAISERROR(
-                'El ticket ya tiene un detalle tecnico registrado',
-                16, 1
-            );
-        END;
-        -- Guardar diagnostico y solucion
-        INSERT INTO Tbl_DetalleTicket(IdTicket,Diagnostico,Solucion)VALUES(@IdTicket,@Diagnostico,@Solucion);
-        -- Actualizar el estado y fecha de resolucion
-        UPDATE Tbl_Ticket
-        SET
-            IdEstadoTicket = 4,
-            Fechaesolucion = GETDATE()
-        WHERE IdTicket = @IdTicket
-          AND IdEstadoTicket = 3;
+            THROW 51149, N'La solución es obligatoria.', 1;
+
+        SELECT @IdDetalleTicket = MAX(IdDetalleTicket)
+        FROM dbo.Tbl_DetalleTicket WITH (UPDLOCK, HOLDLOCK)
+        WHERE IdTicket = @IdTicket;
+
+        IF @IdDetalleTicket IS NULL
+            INSERT INTO dbo.Tbl_DetalleTicket (IdTicket, Diagnostico, Solucion)
+            VALUES (@IdTicket, LTRIM(RTRIM(@Diagnostico)), LTRIM(RTRIM(@Solucion)));
+        ELSE
+            UPDATE dbo.Tbl_DetalleTicket
+            SET Diagnostico = LTRIM(RTRIM(@Diagnostico)), Solucion = LTRIM(RTRIM(@Solucion))
+            WHERE IdDetalleTicket = @IdDetalleTicket;
+
+        UPDATE dbo.Tbl_Ticket
+        SET IdEstadoTicket = @IdEstadoResuelto, Fechaesolucion = GETDATE()
+        WHERE IdTicket = @IdTicket AND IdEstadoTicket = @IdEstadoActual;
         IF @@ROWCOUNT = 0
-        BEGIN
-            RAISERROR(
-                'No se pudo actualizar el estado del ticket',
-                16, 1
-            );
-        END;
-        -- Registrar seguimiento
-        INSERT INTO Tbl_SeguimientoTicket(IdTicket,IdUsuario,Titulo,Descripcion,FechaAccion)VALUES(@IdTicket,@IdUsuario,'Ticket resuelto','El tecnico registro la solucion y resolvio el ticket',GETDATE());
-        -- Registrar auditoria
-        INSERT INTO Tbl_AuditoriaTicket(IdTicket,IdUsuario,Accion,Descripcion,FechaAccion)VALUES(@IdTicket,@IdUsuario,'Resolucion de ticket','El tecnico finalizo el ticket con diagnostico y solucion',GETDATE());
+            THROW 51150, N'No se pudo actualizar el estado del ticket.', 1;
+
+        INSERT INTO dbo.Tbl_SeguimientoTicket (IdTicket, IdUsuario, Titulo, Descripcion)
+        VALUES (@IdTicket, @IdUsuario, 'Ticket resuelto', 'El técnico registró la solución y resolvió el ticket.');
+        INSERT INTO dbo.Tbl_AuditoriaTicket (IdTicket, IdUsuario, Accion, Descripcion)
+        VALUES (@IdTicket, @IdUsuario, 'Resolución de ticket', 'El técnico registró o actualizó el diagnóstico y la solución.');
         COMMIT TRAN;
         PRINT 'Ticket finalizado correctamente';
     END TRY

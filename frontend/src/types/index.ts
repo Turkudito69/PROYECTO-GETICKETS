@@ -15,6 +15,11 @@ export interface TicketItem {
   idTicket: number;
   idUsuario: number;
   idTecnico: number | null;
+  idCategoria: number;
+  idPrioridad: number;
+  idEstadoTicket: number;
+  codigoTicket: string;
+  fechaSolucion: string | null;
   tickets: string;
   descripcion: string;
   solicitante: string;
@@ -26,8 +31,6 @@ export interface TicketItem {
 }
 
 export interface TicketDetail extends TicketItem {
-  codigoTicket?: string;
-  fechaSolucion?: string | null;
   solucion?: string | null;
   diagnostico?: string | null;
   observaciones?: string | null;

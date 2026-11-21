@@ -1,21 +1,30 @@
-import type { PropsWithChildren, ReactNode } from 'react';
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { ActivityIndicator, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import type { ComponentRef, PropsWithChildren, ReactNode } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import type { CircleProps } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, space } from '../theme';
+import { Ionicons } from './Icons';
+import { colors, getThemeColors, radius, space } from '../theme';
+import { useSession } from '../context/SessionContext';
 import type { TicketItem } from '../types';
+import { CATEGORY_ICON_OPTIONS, categoryIconFor } from '../lib/statusUtils';
 import { useReducedMotion } from '../lib/motion';
 import { AppTextInput as TextInput, Text } from './Typography';
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedCircleBase = forwardRef<ComponentRef<typeof Circle>, CircleProps & { collapsable?: boolean }>(function AnimatedCircleBase({ collapsable, ...props }, ref) {
+  return <Circle {...props} {...(Platform.OS === 'web' ? {} : { collapsable })} ref={ref} />;
+});
+const AnimatedCircle = Animated.createAnimatedComponent(AnimatedCircleBase);
 
-export function Screen({ children, scroll = false, contentStyle, transparent = false }: PropsWithChildren<{ scroll?: boolean; contentStyle?: object; transparent?: boolean }>) {
+export function Screen({ children, scroll = false, contentStyle, transparent = false, animate = true, safeTop = true }: PropsWithChildren<{ scroll?: boolean; contentStyle?: object; transparent?: boolean; animate?: boolean; safeTop?: boolean }>) {
+  const { darkMode } = useSession();
+  const themePalette = getThemeColors(darkMode);
   const reduceMotion = useReducedMotion();
   const [progress] = useState(() => new Animated.Value(0));
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
+    if (!animate) return;
     if (reduceMotion) { progress.setValue(1); return; }
     progress.setValue(0);
     const animation = transparent
@@ -23,13 +32,13 @@ export function Screen({ children, scroll = false, contentStyle, transparent = f
       : Animated.timing(progress, { toValue: 1, duration: 200, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: Platform.OS !== 'web' });
     animation.start();
     return () => animation.stop();
-  }, [progress, reduceMotion, transparent]));
+  }, [animate, progress, reduceMotion, transparent]);
   const entranceStyle = transparent
     ? { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }, { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) }] }
     : { opacity: progress, transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }, { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [4, 0] }) }] };
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.screen, transparent && styles.transparentScreen]}>
-      <Animated.View style={[styles.screenContent, entranceStyle]}>
+    <SafeAreaView edges={safeTop ? ['top', 'left', 'right'] : ['left', 'right']} style={[styles.screen, { backgroundColor: themePalette.canvas }, transparent && styles.transparentScreen]}>
+      <Animated.View style={[styles.screenContent, animate && entranceStyle]}>
       {scroll ? (
         <ScrollView contentContainerStyle={[styles.scrollContent, contentStyle]} keyboardShouldPersistTaps="handled">
           {children}
@@ -40,32 +49,32 @@ export function Screen({ children, scroll = false, contentStyle, transparent = f
   );
 }
 
-export function AnimatedEntry({ children, delay = 0, style }: PropsWithChildren<{ delay?: number; style?: object }>) {
+export function AnimatedEntry({ children, delay = 0, duration = 200, distance = 10, style }: PropsWithChildren<{ delay?: number; duration?: number; distance?: number; style?: object }>) {
   const reduceMotion = useReducedMotion();
   const [progress] = useState(() => new Animated.Value(0));
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     if (reduceMotion) { progress.setValue(1); return; }
     progress.setValue(0);
-    const animation = Animated.timing(progress, { toValue: 1, duration: 200, delay, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: Platform.OS !== 'web' });
+    const animation = Animated.timing(progress, { toValue: 1, duration, delay, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: Platform.OS !== 'web' });
     animation.start();
     return () => animation.stop();
-  }, [delay, progress, reduceMotion]));
-  return <Animated.View style={[style, { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>{children}</Animated.View>;
+  }, [delay, duration, progress, reduceMotion]);
+  return <Animated.View style={[style, { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [distance, 0] }) }] }]}>{children}</Animated.View>;
 }
 
-export function AnimatedProgressBar({ value, color, trackColor = '#FFFFFF', height = 5, delay = 80, style }: { value: number; color: string; trackColor?: string; height?: number; delay?: number; style?: object }) {
+export function AnimatedProgressBar({ value, color, trackColor = '#FFFFFF', height = 5, delay = 80, duration = 450, style }: { value: number; color: string; trackColor?: string; height?: number; delay?: number; duration?: number; style?: object }) {
   const reduceMotion = useReducedMotion();
   const [progress] = useState(() => new Animated.Value(0));
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     if (reduceMotion) { progress.setValue(1); return; }
     progress.setValue(0);
-    const animation = Animated.timing(progress, { toValue: 1, duration: 450, delay, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false });
+    const animation = Animated.timing(progress, { toValue: 1, duration, delay, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: Platform.OS !== 'web' });
     animation.start();
     return () => animation.stop();
-  }, [delay, progress, reduceMotion]));
+  }, [delay, duration, progress, reduceMotion]);
 
-  const width = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(0, Math.min(100, value))}%`] });
-  return <View style={[styles.progressTrack, { height, backgroundColor: trackColor }, style]}><Animated.View style={[styles.progressFill, { width, backgroundColor: color }]} /></View>;
+  const targetWidth = `${Math.max(0, Math.min(100, value))}%`;
+  return <View style={[styles.progressTrack, { height, backgroundColor: trackColor }, style]}><Animated.View style={[styles.progressFill, { width: targetWidth, backgroundColor: color, transformOrigin: 'left', transform: [{ scaleX: progress }] }]} /></View>;
 }
 
 export function AnimatedProgressRing({ value, size = 76, strokeWidth = 8, color = '#34D399', trackColor = 'rgba(255,255,255,0.16)' }: { value: number; size?: number; strokeWidth?: number; color?: string; trackColor?: string }) {
@@ -75,13 +84,13 @@ export function AnimatedProgressRing({ value, size = 76, strokeWidth = 8, color 
   const circumference = 2 * Math.PI * radiusValue;
   const center = size / 2;
 
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     if (reduceMotion) { progress.setValue(1); return; }
     progress.setValue(0);
     const animation = Animated.timing(progress, { toValue: 1, duration: 650, easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false });
     animation.start();
     return () => animation.stop();
-  }, [progress, reduceMotion]));
+  }, [progress, reduceMotion]);
 
   const dashOffset = progress.interpolate({ inputRange: [0, 1], outputRange: [circumference, circumference * (1 - Math.max(0, Math.min(100, value)) / 100)] });
   return (
@@ -95,28 +104,48 @@ export function AnimatedProgressRing({ value, size = 76, strokeWidth = 8, color 
 }
 
 export function Brand({ inverse = false }: { inverse?: boolean }) {
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
   return (
     <View style={styles.brand}>
       <View style={styles.brandMark}><Ionicons name="ticket" size={19} color="#FFFFFF" /></View>
-      <Text style={[styles.brandName, inverse && styles.brandNameInverse]}>GETICKETS</Text>
+      <Text style={[styles.brandName, { color: inverse ? '#FFFFFF' : palette.ink }, inverse && styles.brandNameInverse]}>GETICKETS</Text>
     </View>
   );
 }
 
 export function PageHeading({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 640;
   return (
-    <View style={styles.pageHeading}>
-      <View style={styles.pageHeadingText}>
+    <View style={[styles.pageHeading, compact && styles.pageHeadingCompact]}>
+      <View style={[styles.pageHeadingText, compact && styles.pageHeadingTextCompact]}>
         <Text style={styles.pageTitle}>{title}</Text>
         {subtitle ? <Text style={styles.pageSubtitle}>{subtitle}</Text> : null}
       </View>
-      {right}
+      {right ? <View style={[styles.pageHeadingRight, compact && styles.pageHeadingRightCompact]}>{right}</View> : null}
     </View>
   );
 }
 
-export function Surface({ children, style }: PropsWithChildren<{ style?: object }>) {
-  return <View style={[styles.surface, style]}>{children}</View>;
+export function Surface({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+  const { darkMode } = useSession();
+  const themePalette = getThemeColors(darkMode);
+  const customStyle = StyleSheet.flatten(style) ?? {};
+  const sourceBackground = typeof customStyle.backgroundColor === 'string' ? customStyle.backgroundColor.toUpperCase() : customStyle.backgroundColor;
+  const sourceBorder = typeof customStyle.borderColor === 'string' ? customStyle.borderColor.toUpperCase() : customStyle.borderColor;
+  const darkSurfaceTints: Record<string, string> = {
+    '#FFFFFF': themePalette.surface, '#FAFAFA': themePalette.surface, '#F9FAFB': themePalette.surface, '#F8FAFC': themePalette.surface,
+    '#FAFBFD': themePalette.surface, '#F4F6FB': themePalette.surface, '#F1F5F9': themePalette.surfaceSoft, '#EEF2F7': themePalette.surfaceSoft,
+    '#E9EDF3': themePalette.surfaceSoft, '#E0F2FE': themePalette.skySoft, '#EFF9FF': themePalette.skySoft, '#F1FAFF': themePalette.skySoft,
+    '#F4FBFF': themePalette.skySoft, '#F2FAFF': themePalette.skySoft, '#FFFBEB': themePalette.amberSoft,
+    '#FFF7E6': themePalette.amberSoft, '#ECFDF5': themePalette.greenSoft, '#E8FAF3': themePalette.greenSoft, '#EEF0FF': themePalette.indigoSoft,
+    '#FFF0F2': themePalette.redSoft,
+  };
+  const darkLineColors = ['#E5E5E5', '#E0E0E0', '#E2E2E2', '#E4E4E4', '#E5E7EB', '#DDE3EC'];
+  const backgroundColor = darkMode && typeof sourceBackground === 'string' ? darkSurfaceTints[sourceBackground] ?? sourceBackground : sourceBackground;
+  const borderColor = darkMode && typeof sourceBorder === 'string' && darkLineColors.includes(sourceBorder) ? themePalette.line : sourceBorder;
+  return <View style={[styles.surface, { backgroundColor: themePalette.surface, borderColor: themePalette.line }, customStyle, { borderWidth: 2, ...(backgroundColor ? { backgroundColor } : {}), ...(borderColor ? { borderColor } : {}) }]}>{children}</View>;
 }
 
 type ButtonProps = PropsWithChildren<{
@@ -129,12 +158,14 @@ type ButtonProps = PropsWithChildren<{
 }>;
 
 export function Button({ children, onPress, variant = 'primary', loading = false, disabled = false, icon, compact = false }: ButtonProps) {
+  const { darkMode } = useSession();
+  const themePalette = getThemeColors(darkMode);
   const reduceMotion = useReducedMotion();
   const palette = {
-    primary: { backgroundColor: colors.primary, color: colors.onPrimary, borderColor: colors.primary },
-    secondary: { backgroundColor: colors.surface, color: colors.ink, borderColor: colors.line },
-    ghost: { backgroundColor: 'transparent', color: colors.primaryDark, borderColor: 'transparent' },
-    danger: { backgroundColor: colors.red, color: '#FFFFFF', borderColor: colors.red },
+    primary: { backgroundColor: themePalette.primary, color: themePalette.onPrimary, borderColor: themePalette.primary },
+    secondary: { backgroundColor: themePalette.surface, color: themePalette.ink, borderColor: themePalette.line },
+    ghost: { backgroundColor: 'transparent', color: themePalette.primaryDark, borderColor: 'transparent' },
+    danger: { backgroundColor: themePalette.red, color: '#FFFFFF', borderColor: themePalette.red },
   }[variant];
 
   return (
@@ -177,6 +208,8 @@ export function Field({
   error?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words';
 }) {
+  const { darkMode } = useSession();
+  const themePalette = getThemeColors(darkMode);
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -184,14 +217,14 @@ export function Field({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={themePalette.muted}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         multiline={multiline}
         autoCapitalize={autoCapitalize}
         autoCorrect={!secureTextEntry && keyboardType !== 'email-address'}
         textAlignVertical={multiline ? 'top' : 'center'}
-        style={[styles.input, multiline && styles.inputMultiline, error && styles.inputError]}
+        style={[styles.input, { backgroundColor: themePalette.surface, borderColor: themePalette.line, color: themePalette.ink }, multiline && styles.inputMultiline, error && styles.inputError]}
       />
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
@@ -199,12 +232,19 @@ export function Field({
 }
 
 export function Notice({ message, tone = 'error' }: { message: string; tone?: 'error' | 'info' | 'success' }) {
+  const { darkMode } = useSession();
+  const themePalette = getThemeColors(darkMode);
   const toneStyle = tone === 'error' ? styles.noticeError : tone === 'success' ? styles.noticeSuccess : styles.noticeInfo;
   const icon = tone === 'error' ? 'alert-circle-outline' : tone === 'success' ? 'checkmark-circle-outline' : 'information-circle-outline';
+  const toneColors = tone === 'error'
+    ? { backgroundColor: themePalette.redSoft, borderColor: themePalette.red, icon: themePalette.red }
+    : tone === 'success'
+      ? { backgroundColor: themePalette.greenSoft, borderColor: themePalette.green, icon: themePalette.green }
+      : { backgroundColor: themePalette.skySoft, borderColor: themePalette.primary, icon: themePalette.primary };
   return (
-    <View style={[styles.notice, toneStyle]} accessibilityRole={tone === 'error' ? 'alert' : undefined}>
-      <Ionicons name={icon} size={18} color={tone === 'error' ? colors.red : tone === 'success' ? colors.green : colors.primaryDark} />
-      <Text style={styles.noticeText}>{message}</Text>
+    <View style={[styles.notice, toneStyle, { backgroundColor: toneColors.backgroundColor, borderColor: toneColors.borderColor }]} accessibilityRole={tone === 'error' ? 'alert' : undefined}>
+      <Ionicons name={icon} size={18} color={toneColors.icon} />
+      <Text style={[styles.noticeText, { color: themePalette.ink }]}>{message}</Text>
     </View>
   );
 }
@@ -214,9 +254,11 @@ export function LoadingState({ label = 'Cargando información…' }: { label?: s
 }
 
 export function EmptyState({ title, description, icon = 'file-tray-outline', action }: { title: string; description: string; icon?: keyof typeof Ionicons.glyphMap; action?: ReactNode }) {
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
   return (
     <View style={styles.emptyState}>
-      <View style={styles.emptyIcon}><Ionicons name={icon} size={25} color={colors.primaryDark} /></View>
+      <View style={[styles.emptyIcon, { backgroundColor: palette.skySoft }]}><Ionicons name={icon} size={25} color={palette.primaryDark} /></View>
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyDescription}>{description}</Text>
       {action}
@@ -225,24 +267,31 @@ export function EmptyState({ title, description, icon = 'file-tray-outline', act
 }
 
 export function StatusPill({ status }: { status: string }) {
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
   const normalized = status.toLocaleLowerCase();
   const isDone = normalized.includes('complet') || normalized.includes('resuelt');
   const isProgress = normalized.includes('proceso') || normalized.includes('asign');
   const tone = isDone ? styles.statusDone : isProgress ? styles.statusProgress : styles.statusOpen;
-  return <View style={[styles.statusPill, tone]}><Text style={styles.statusText}>{status || 'Sin estado'}</Text></View>;
+  const toneColor = isDone ? palette.greenSoft : isProgress ? palette.skySoft : palette.amberSoft;
+  return <View style={[styles.statusPill, tone, { backgroundColor: toneColor }]}><Text style={[styles.statusText, { color: palette.ink }]}>{status || 'Sin estado'}</Text></View>;
 }
 
 export function TicketCard({ ticket, onPress }: { ticket: TicketItem; onPress: () => void }) {
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
+  const categoryIcon = categoryIconFor(ticket.categoria);
+  const categoryOption = CATEGORY_ICON_OPTIONS.find((option) => option.key === categoryIcon);
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.ticketCard, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.ticketCard, { backgroundColor: palette.surface, borderColor: palette.line, borderWidth: 2 }, pressed && styles.pressed]}>
       <View style={styles.ticketTopline}>
         <Text style={styles.ticketCode}>{ticket.tickets || `Ticket #${ticket.idTicket}`}</Text>
         <StatusPill status={ticket.estadoTicket} />
       </View>
       <Text style={styles.ticketDescription} numberOfLines={2}>{ticket.descripcion || 'Sin descripción'}</Text>
       <View style={styles.ticketMeta}>
-        <View style={styles.metaItem}><Ionicons name="grid-outline" size={14} color={colors.muted} /><Text style={styles.metaText} numberOfLines={1}>{ticket.categoria || 'Sin categoría'}</Text></View>
-        <View style={styles.metaItem}><Ionicons name="flag-outline" size={14} color={colors.muted} /><Text style={styles.metaText}>{ticket.prioridad || 'Normal'}</Text></View>
+        <View style={styles.metaItem}><Ionicons name={categoryIcon} size={14} color={categoryOption?.color ?? palette.muted} /><Text style={styles.metaText} numberOfLines={1}>{ticket.categoria || 'Sin categoría'}</Text></View>
+        <PriorityIndicator priority={ticket.prioridad || 'Media'} />
       </View>
       <View style={styles.ticketFooter}>
         <Text style={styles.ticketDate}>{formatDate(ticket.fechaCreacion)}</Text>
@@ -250,6 +299,19 @@ export function TicketCard({ ticket, onPress }: { ticket: TicketItem; onPress: (
       </View>
     </Pressable>
   );
+}
+
+export function PriorityIndicator({ priority }: { priority: string }) {
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
+  const normalized = priority.toLocaleLowerCase();
+  const level = normalized.includes('alta') || normalized.includes('crít') ? 3 : normalized.includes('media') ? 2 : 1;
+  const tone = level === 3 ? colors.red : level === 2 ? colors.amber : colors.teal;
+  const heights = [6, 9, 12];
+  return <View style={styles.priorityIndicator} accessibilityLabel={`Prioridad ${priority}`}>
+    <View style={styles.priorityBars}>{heights.map((height, index) => <View key={height} style={{ width: 3, height, borderRadius: 2, backgroundColor: index < level ? tone : palette.line }} />)}</View>
+    <Text style={[styles.priorityText, { color: darkMode && level === 1 ? '#5EEAD4' : tone }]}>{priority}</Text>
+  </View>;
 }
 
 export function formatDate(value: string | null | undefined) {
@@ -279,11 +341,15 @@ const styles = StyleSheet.create({
   brandMark: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.amber },
   brandName: { color: colors.ink, fontSize: 16, fontWeight: '900', letterSpacing: 0.7 },
   brandNameInverse: { color: '#FFFFFF' },
-  pageHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm },
+  pageHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, minWidth: 0 },
+  pageHeadingCompact: { flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', gap: 12 },
   pageHeadingText: { flex: 1, gap: 3 },
+  pageHeadingTextCompact: { width: '100%', flex: 0 },
+  pageHeadingRight: { flexShrink: 0, alignItems: 'flex-end' },
+  pageHeadingRightCompact: { width: '100%', flexShrink: 1, alignItems: 'flex-end' },
   pageTitle: { color: colors.ink, fontSize: 25, lineHeight: 31, fontWeight: '800', letterSpacing: -0.5 },
   pageSubtitle: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  surface: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: space.md },
+  surface: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.line, borderRadius: radius.md, padding: space.md },
   button: { minHeight: 50, borderRadius: 14, borderWidth: 1, paddingHorizontal: space.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   buttonCompact: { minHeight: 42, borderRadius: 12, paddingHorizontal: 13 },
   buttonDisabled: { opacity: 0.55 },
@@ -319,6 +385,7 @@ const styles = StyleSheet.create({
   ticketDescription: { color: colors.ink, fontSize: 15, fontWeight: '700', lineHeight: 21 },
   ticketMeta: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '60%' },
+  priorityIndicator: { flexDirection: 'row', alignItems: 'center', gap: 5 }, priorityBars: { height: 13, flexDirection: 'row', alignItems: 'flex-end', gap: 2 }, priorityText: { fontSize: 12, fontWeight: '700' },
   metaText: { color: colors.muted, fontSize: 12 },
   ticketFooter: { borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   ticketDate: { color: colors.muted, fontSize: 12 },

@@ -1,71 +1,67 @@
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 import { Text } from '../components/Typography';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/Icons';
 import { useSession } from '../context/SessionContext';
 import { useReducedMotion } from '../lib/motion';
 
 const splashDuration = 1750;
 
 export default function EntryRoute() {
-  const { user } = useSession();
+  const { user, isReady } = useSession();
   const reduceMotion = useReducedMotion();
   const destination = user ? '/(tabs)' : '/login';
-  const [logoProgress] = useState(() => new Animated.Value(0));
-  const [copyProgress] = useState(() => new Animated.Value(0));
-  const [glowProgress] = useState(() => new Animated.Value(0));
-  const [barProgress] = useState(() => new Animated.Value(0));
+  const logoProgress = useSharedValue(0);
+  const copyProgress = useSharedValue(0);
+  const glowProgress = useSharedValue(0);
+  const barProgress = useSharedValue(0);
 
   useEffect(() => {
+    if (!isReady) return;
     const timeout = setTimeout(() => router.replace(destination), splashDuration);
     return () => clearTimeout(timeout);
-  }, [destination]);
+  }, [destination, isReady]);
 
   useEffect(() => {
     if (reduceMotion) {
-      logoProgress.setValue(1); copyProgress.setValue(1); glowProgress.setValue(1); barProgress.setValue(1);
+      logoProgress.value = 1; copyProgress.value = 1; glowProgress.value = 1; barProgress.value = 1;
       return;
     }
-    const useNativeDriver = Platform.OS !== 'web';
-    const entrance = Animated.parallel([
-      Animated.sequence([
-        Animated.delay(120),
-        Animated.timing(logoProgress, { toValue: 1, duration: 460, easing: Easing.out(Easing.back(1.15)), useNativeDriver }),
-      ]),
-      Animated.timing(copyProgress, { toValue: 1, duration: 450, delay: 300, easing: Easing.out(Easing.cubic), useNativeDriver }),
-      Animated.timing(glowProgress, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver }),
-      Animated.timing(barProgress, { toValue: 1, duration: 1250, delay: 420, easing: Easing.out(Easing.cubic), useNativeDriver }),
-    ]);
-    entrance.start();
-    return () => entrance.stop();
+    logoProgress.value = 0; copyProgress.value = 0; glowProgress.value = 0; barProgress.value = 0;
+    logoProgress.value = withDelay(120, withSpring(1, { stiffness: 300, damping: 20 }));
+    copyProgress.value = withDelay(300, withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) }));
+    glowProgress.value = withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) });
+    barProgress.value = withDelay(420, withTiming(1, { duration: 1250, easing: Easing.out(Easing.cubic) }));
+    return () => {
+      cancelAnimation(logoProgress); cancelAnimation(copyProgress); cancelAnimation(glowProgress); cancelAnimation(barProgress);
+    };
   }, [barProgress, copyProgress, glowProgress, logoProgress, reduceMotion]);
 
-  const logoScale = logoProgress.interpolate({ inputRange: [0, 1], outputRange: [.55, 1] });
-  const logoRotate = logoProgress.interpolate({ inputRange: [0, 1], outputRange: ['-14deg', '0deg'] });
-  const copyY = copyProgress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
-  const glowScale = glowProgress.interpolate({ inputRange: [0, 1], outputRange: [.65, 1.15] });
-  const glowOpacity = glowProgress.interpolate({ inputRange: [0, 1], outputRange: [0, .34] });
-  const barScale = barProgress.interpolate({ inputRange: [0, 1], outputRange: [.04, 1] });
+  const logoStyle = useAnimatedStyle(() => ({ opacity: logoProgress.value, transform: [{ scale: .55 + logoProgress.value * .45 }, { rotate: `${-14 + logoProgress.value * 14}deg` }] }));
+  const copyStyle = useAnimatedStyle(() => ({ opacity: copyProgress.value, transform: [{ translateY: 14 * (1 - copyProgress.value) }] }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glowProgress.value * .34, transform: [{ scale: .65 + glowProgress.value * .5 }] }));
+  const barStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: .04 + barProgress.value * .96 }] }));
 
-  const skip = () => router.replace(destination);
+  const skip = () => { if (isReady) router.replace(destination); };
 
   return (
     <Pressable onPress={skip} accessibilityRole="button" accessibilityLabel="Iniciando GETICKETS. Toca para continuar." style={styles.screen}>
       <StatusBar style="light" />
-      <Animated.View pointerEvents="none" style={[styles.glow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
+      <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} />
       <View style={styles.content}>
-        <Animated.View style={[styles.emblemOuter, { opacity: logoProgress, transform: [{ scale: logoScale }, { rotate: logoRotate }] }]}>
+        <Animated.View style={[styles.emblemOuter, logoStyle]}>
           <View style={styles.emblem}><Ionicons name="ticket" size={40} color="#070C17" /></View>
         </Animated.View>
-        <Animated.View style={[styles.copy, { opacity: copyProgress, transform: [{ translateY: copyY }] }]}>
+        <Animated.View style={[styles.copy, copyStyle]}>
           <Text style={styles.welcome}>BIENVENIDO A</Text>
           <Text style={styles.brand}>GETICKETS</Text>
           <Text style={styles.subtitle}>Mesa de ayuda técnica inteligente</Text>
         </Animated.View>
         <View style={styles.track}>
-          <Animated.View style={[styles.progress, { transform: [{ scaleX: barScale }] }]}>
+          <Animated.View style={[styles.progress, barStyle]}>
             <View style={[styles.progressSegment, styles.amber]} /><View style={[styles.progressSegment, styles.sky]} /><View style={[styles.progressSegment, styles.green]} />
           </Animated.View>
         </View>

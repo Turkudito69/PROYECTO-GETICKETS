@@ -34,6 +34,9 @@ namespace Infraestructure.Repository
                     IdTecnico = dr["IdTecnico"] == DBNull.Value
                         ? null
                         : Convert.ToInt32(dr["IdTecnico"]),
+                    IdCategoria = Convert.ToInt32(dr["IdCategoria"]),
+                    IdPrioridad = dr["IdPrioridad"] == DBNull.Value ? 0 : Convert.ToInt32(dr["IdPrioridad"]),
+                    IdEstadoTicket = Convert.ToInt32(dr["IdEstadoTicket"]),
                     Descripcion = dr["Descripcion"]?.ToString(),
                     Tickets = dr["Ticket"]?.ToString(),
                     Solicitante = dr["Solicitante"]?.ToString(),

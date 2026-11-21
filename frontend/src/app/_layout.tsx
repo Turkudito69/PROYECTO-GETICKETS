@@ -4,12 +4,11 @@ import { useFonts } from 'expo-font';
 import { BricolageGrotesque_800ExtraBold } from '@expo-google-fonts/bricolage-grotesque';
 import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
 import { PublicSans_400Regular, PublicSans_500Medium, PublicSans_600SemiBold, PublicSans_700Bold, PublicSans_800ExtraBold } from '@expo-google-fonts/public-sans';
-import { SessionProvider } from '../context/SessionContext';
-import { colors } from '../theme';
+import { SessionProvider, useSession } from '../context/SessionContext';
+import { getThemeColors } from '../theme';
 import { useReducedMotion } from '../lib/motion';
 
 export default function RootLayout() {
-  const reduceMotion = useReducedMotion();
   const [fontsLoaded, fontError] = useFonts({
     'BricolageGrotesque-ExtraBold': BricolageGrotesque_800ExtraBold,
     'IBMPlexMono-Medium': IBMPlexMono_500Medium,
@@ -21,18 +20,25 @@ export default function RootLayout() {
   });
   if (!fontsLoaded && !fontError) return null;
 
+  return <SessionProvider><AppNavigator /></SessionProvider>;
+}
+
+function AppNavigator() {
+  const reduceMotion = useReducedMotion();
+  const { darkMode } = useSession();
+  const palette = getThemeColors(darkMode);
   return (
-    <SessionProvider>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
+    <>
+      <StatusBar style={darkMode ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.canvas } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="new-ticket" options={{ presentation: 'transparentModal', animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
         <Stack.Screen name="ticket/[id]" options={{ animation: reduceMotion ? 'none' : 'slide_from_right' }} />
-        <Stack.Screen name="notifications" options={{ animation: reduceMotion ? 'none' : 'fade_from_bottom' }} />
+        <Stack.Screen name="notifications" options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
         <Stack.Screen name="account" options={{ animation: reduceMotion ? 'none' : 'fade_from_bottom' }} />
       </Stack>
-    </SessionProvider>
+    </>
   );
 }
