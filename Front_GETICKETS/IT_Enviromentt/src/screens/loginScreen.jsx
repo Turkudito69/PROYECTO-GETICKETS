@@ -13,8 +13,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
+import GlassBackdrop from '../components/GlassBackdrop';
 
-const API_LOGIN = 'http://192.168.1.37:12190/api/Login';
+const API_LOGIN = 'http://192.168.1.46:12190/api/Login';
 
 const rutasPorRol = {
   administrador: '/Dashboard/administrador',
@@ -95,6 +96,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.keyboardAvoiding}>
+      <GlassBackdrop />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.page, !escritorio && styles.pageMobile, escritorio && styles.pageDesktop]}
@@ -200,9 +202,9 @@ function WelcomePanel() {
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoiding: { flex: 1, backgroundColor: '#f3f6fb' },
-  scroll: { flex: 1, backgroundColor: '#f3f6fb' },
-  page: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 30, backgroundColor: '#f3f6fb' },
+  keyboardAvoiding: { flex: 1, backgroundColor: '#080914', position: 'relative' },
+  scroll: { flex: 1, backgroundColor: 'transparent' },
+  page: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 30, backgroundColor: 'transparent' },
   pageMobile: { justifyContent: 'flex-start', paddingTop: 22, paddingBottom: 30 },
   pageDesktop: { flexDirection: 'row', alignItems: 'stretch', gap: 28, padding: 28 },
   mobileBrand: { width: '100%', maxWidth: 390, alignItems: 'center', marginBottom: 18 },
@@ -210,16 +212,16 @@ const styles = StyleSheet.create({
   mobileEyebrow: { color: '#59708d', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 10 },
   formPanel: { width: '100%', maxWidth: 470, alignItems: 'center' },
   formPanelDesktop: { flex: 1, maxWidth: 650, justifyContent: 'center', paddingHorizontal: 24 },
-  loginCard: { width: '100%', backgroundColor: '#ffffff', borderRadius: 22, padding: 24, borderWidth: 1, borderColor: '#e5ebf3', shadowColor: '#243a60', shadowOpacity: 0.08, shadowRadius: 26, shadowOffset: { width: 0, height: 14 }, elevation: 4 },
+  loginCard: { width: '100%', backgroundColor: 'rgba(31,35,54,0.78)', borderRadius: 22, padding: 24, borderWidth: 1, borderColor: 'rgba(181,229,255,0.58)', shadowColor: '#008DFF', shadowOpacity: 0.25, shadowRadius: 26, shadowOffset: { width: 0, height: 14 }, elevation: 4 },
   loginCardDesktop: { maxWidth: 440, padding: 34, borderRadius: 24, shadowOpacity: 0.055 },
   cardHeading: { marginBottom: 25 },
-  eyebrow: { color: '#355df4', fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  title: { color: '#18233b', fontSize: 27, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
-  subtitle: { color: '#78859a', fontSize: 13, lineHeight: 20, marginTop: 8 },
+  eyebrow: { color: '#62DBFF', fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  title: { color: '#F3F7FF', fontSize: 27, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
+  subtitle: { color: '#B4C0D8', fontSize: 13, lineHeight: 20, marginTop: 8 },
   field: { marginBottom: 17 },
-  label: { color: '#3c4c65', fontSize: 12, fontWeight: '700', marginBottom: 8 },
-  input: { width: '100%', minHeight: 49, paddingHorizontal: 14, borderWidth: 1, borderColor: '#dfe6ef', borderRadius: 11, backgroundColor: '#fbfcfe', color: '#18233b', fontSize: 14, outlineStyle: 'none' },
-  button: { minHeight: 51, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#193f83', borderRadius: 11, paddingHorizontal: 16, marginTop: 3, shadowColor: '#193f83', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  label: { color: '#D4E2FA', fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  input: { width: '100%', minHeight: 49, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(178,218,255,0.36)', borderRadius: 11, backgroundColor: 'rgba(12,16,31,0.72)', color: '#F3F7FF', fontSize: 14, outlineStyle: 'none' },
+  button: { minHeight: 51, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#62DBFF', borderRadius: 11, paddingHorizontal: 16, marginTop: 3, shadowColor: '#00BFFF', shadowOpacity: 0.48, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   buttonPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
@@ -228,14 +230,19 @@ const styles = StyleSheet.create({
   secureIcon: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#e8f7f1', color: '#19966b', textAlign: 'center', textAlignVertical: 'center', overflow: 'hidden', fontSize: 11, fontWeight: '800' },
   secureText: { flex: 1, color: '#8490a3', fontSize: 10, lineHeight: 15 },
   footer: { color: '#a2acbc', fontSize: 8, fontWeight: '800', letterSpacing: 1, textAlign: 'center', marginTop: 20 },
-  welcomePanel: { flex: 1, minWidth: 350, minHeight: 670, overflow: 'hidden', justifyContent: 'space-between', padding: 24, borderRadius: 25, borderWidth: 1, borderColor: '#dce6f4', backgroundColor: '#eef4fc' },
+  welcomePanel: { flex: 1, minWidth: 350, minHeight: 670, overflow: 'hidden', justifyContent: 'space-between', padding: 24, borderRadius: 25, borderWidth: 1, borderColor: 'rgba(183,229,255,0.5)', backgroundColor: 'rgba(38,45,68,0.76)' },
   welcomeLogoWrap: { width: '100%', maxWidth: 500, aspectRatio: 534 / 400, alignSelf: 'center' },
   welcomeLogoImage: { width: '100%', height: '100%' },
   welcomeCopy: { zIndex: 1, maxWidth: 520, alignSelf: 'center', alignItems: 'center', marginVertical: 13 },
-  welcomeEyebrow: { color: '#355df4', fontSize: 10, fontWeight: '800', letterSpacing: 1.6, textAlign: 'center' },
-  welcomeTitle: { color: '#18233b', fontSize: 35, fontWeight: '800', lineHeight: 43, letterSpacing: -1, marginTop: 14, textAlign: 'center' },
+  welcomeEyebrow: { color: '#62DBFF', fontSize: 10, fontWeight: '800', letterSpacing: 1.6, textAlign: 'center' },
+  welcomeTitle: { color: '#F3F7FF', fontSize: 35, fontWeight: '800', lineHeight: 43, letterSpacing: -1, marginTop: 14, textAlign: 'center' },
   welcomeDescription: { maxWidth: 460, color: '#62728d', fontSize: 14, lineHeight: 23, marginTop: 10, textAlign: 'center' },
   welcomeFoot: { zIndex: 1, alignItems: 'center' },
   welcomeFootLine: { width: 38, height: 3, borderRadius: 2, backgroundColor: '#65a8e7', marginBottom: 13 },
   welcomeFootText: { color: '#7889a2', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, textAlign: 'center' },
 });
+
+
+
+
+

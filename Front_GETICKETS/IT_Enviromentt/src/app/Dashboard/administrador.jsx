@@ -21,13 +21,24 @@ import {
   obtenerTickets,
 } from '../../API/api';
 import BrandLogo from '../../components/BrandLogo';
+import GlassBackdrop from '../../components/GlassBackdrop';
 import DetalleGeneralTicketModal from '../../components/DetalleGeneralTicketModal';
+import AdminCatalogosPanel from '../../components/AdminCatalogosPanel';
+import AdminUsuariosTecnicosPanel from '../../components/AdminUsuariosTecnicosPanel';
+import AdminAuditoriaPanel from '../../components/AdminAuditoriaPanel';
+import ProfileThemeModal from '../../components/ProfileThemeModal';
+import { useAppTheme } from '../../context/AppThemeContext';
 
-const C = {
-  background: '#f4f7fb', surface: '#ffffff', ink: '#18233b', muted: '#78859a',
-  line: '#e7edf4', brand: '#355df4', brandLight: '#ecf0ff', green: '#19966b',
-  amber: '#bb7a17', red: '#d44a51', purple: '#8558e9',
+const C_DARK = {
+  background: '#080914', surface: 'rgba(35,39,58,0.78)', cardSurface: '#1d2030', modalSurface: '#1a1d2e', ink: '#F3F7FF', muted: '#B4C0D8',
+  line: 'rgba(158,218,255,0.42)', brand: '#60D9FF', brandLight: 'rgba(66,174,255,0.20)', green: '#19966b',
+  amber: '#bb7a17', red: '#d44a51', purple: '#8558e9', ticketSurface: '#1d2030', ticketHeader: '#1d2030', ticketLine: 'rgba(158,218,255,0.20)', inputSurface: '#111525',
 };
+const C_LIGHT = { background: '#f4f7fb', surface: '#ffffff', cardSurface: '#ffffff', modalSurface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4', brand: '#355df4', brandLight: '#ecf0ff', green: '#19966b', amber: '#bb7a17', red: '#d44a51', purple: '#8558e9', ticketSurface: '#ffffff', ticketHeader: '#f9fbfd', ticketLine: '#e7edf4', inputSurface: '#fbfcfe' };
+let C = C_DARK;
+let styles;
+
+const modulosCatalogo = ['categorias', 'prioridades', 'roles', 'estados'];
 
 function texto(value, fallback = '—') {
   return value === null || value === undefined || value === '' ? fallback : String(value);
@@ -63,6 +74,9 @@ function fechaVisible(value) {
 }
 
 export default function AdministradorDashboard() {
+  const { isDark, setMode } = useAppTheme();
+  C = isDark ? C_DARK : C_LIGHT;
+  styles = useMemo(() => createStyles(), [isDark]);
   const { nombre, apellido, idUsuario } = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const [hidratado, setHidratado] = useState(false);
@@ -92,7 +106,16 @@ export default function AdministradorDashboard() {
   const [detalleGeneral, setDetalleGeneral] = useState(null);
   const [cargandoDetalleGeneral, setCargandoDetalleGeneral] = useState(false);
   const [errorDetalleGeneral, setErrorDetalleGeneral] = useState('');
+  const [perfilVisible, setPerfilVisible] = useState(false);
   const adminId = Array.isArray(idUsuario) ? idUsuario[0] : idUsuario;
+  const esCatalogo = modulosCatalogo.includes(moduloActivo);
+  const esModuloPersonas = moduloActivo === 'usuarios' || moduloActivo === 'tecnicos';
+  const esAuditoria = moduloActivo === 'auditoria';
+  const nombreModulo = {
+    resumen: 'Resumen', tickets: 'Tickets', categorias: 'Categorías',
+    prioridades: 'Prioridades', roles: 'Roles', estados: 'Estados',
+    usuarios: 'Usuarios y técnicos', tecnicos: 'Usuarios y técnicos', auditoria: 'Auditoría',
+  }[moduloActivo] || 'Resumen';
 
   const cargarTickets = useCallback(async () => {
     setCargando(true);
@@ -210,12 +233,13 @@ export default function AdministradorDashboard() {
   }), [tickets]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.layout, compacto && styles.layoutCompacto]}>
-        {!compacto ? <Sidebar moduloActivo={moduloActivo} onNavigate={setModuloActivo} /> : null}
+    <SafeAreaView style={[styles.safeArea, !isDark && styles.safeAreaLight]}>
+      <GlassBackdrop isDark={isDark} />
+          <View style={[styles.layout, compacto && styles.layoutCompacto]}>
+        {!compacto ? <Sidebar moduloActivo={moduloActivo} onNavigate={setModuloActivo} onProfile={() => setPerfilVisible(true)} isDark={isDark} /> : null}
 
         <View style={styles.main}>
-          {compacto ? <MobileHeader nombre={nombreCompleto} /> : <Topbar nombre={nombreCompleto} modulo={moduloActivo} />}
+          {compacto ? <MobileHeader nombre={nombreCompleto} onProfile={() => setPerfilVisible(true)} isDark={isDark} /> : <Topbar nombre={nombreCompleto} modulo={moduloActivo} />}
           <ScrollView contentContainerStyle={[styles.content, compacto && styles.contentCompacto]}>
             <View style={[styles.pageHead, compacto && styles.pageHeadCompacto]}>
               <View style={styles.pageHeadCopy}>
@@ -223,28 +247,37 @@ export default function AdministradorDashboard() {
                 <Text style={[styles.pageTitle, compacto && styles.pageTitleCompacto]}>
                   {moduloActivo === 'resumen'
                     ? (nombreCompleto ? `¡Hola, ${nombreCompleto.split(' ')[0]}!` : 'Resumen de soporte')
-                    : 'Todos los tickets'}
+                    : (esCatalogo || esModuloPersonas || esAuditoria) ? nombreModulo : 'Todos los tickets'}
                 </Text>
                 <Text style={styles.pageSubtitle}>
                   {moduloActivo === 'resumen'
                     ? 'Este es el estado general de las solicitudes de soporte.'
-                    : 'Listado completo de las solicitudes registradas en el sistema.'}
+                    : esAuditoria ? 'Consultá quién realizó cada cambio registrado en los tickets.'
+                    : esCatalogo ? `Administrá el catálogo de ${nombreModulo.toLowerCase()}.`
+                      : esModuloPersonas ? 'Administrá cuentas de usuario y perfiles técnicos.'
+                      : 'Listado completo de las solicitudes registradas en el sistema.'}
                 </Text>
               </View>
-              <Pressable accessibilityRole="button" onPress={() => void cargarTickets()} style={styles.refreshButton}>
+              {!(esCatalogo || esModuloPersonas || esAuditoria) ? <Pressable accessibilityRole="button" onPress={() => void cargarTickets()} style={styles.refreshButton}>
                 <Text style={styles.refreshText}>↻  Actualizar</Text>
-              </Pressable>
+              </Pressable> : null}
             </View>
 
             {mensajeAsignacion ? <View style={styles.assignmentSuccess}><Text style={styles.assignmentSuccessText}>✓  {mensajeAsignacion}</Text></View> : null}
 
-            {moduloActivo === 'resumen' ? (
+            {esModuloPersonas ? (
+              <AdminUsuariosTecnicosPanel activeTab={moduloActivo === 'tecnicos' ? 'tecnicos' : 'usuarios'} onTabChange={setModuloActivo} compacto={compacto} />
+            ) : esCatalogo ? (
+              <AdminCatalogosPanel activeTab={moduloActivo} onTabChange={setModuloActivo} compacto={compacto} />
+            ) : esAuditoria ? (
+              <AdminAuditoriaPanel compacto={compacto} />
+            ) : moduloActivo === 'resumen' ? (
               <>
                 <View style={[styles.stats, compacto && styles.statsCompact]}>
-                  <StatCard label="Todos los tickets" value={resumen.total} icon="▤" hint="Registros del sistema" color={C.brand} compacto={compacto} />
-                  <StatCard label="Abiertos" value={resumen.abiertos} icon="◷" hint="Pendientes de asignación" color={C.brand} compacto={compacto} />
-                  <StatCard label="En atención" value={resumen.proceso} icon="⚒" hint="Asignados o en proceso" color={C.amber} compacto={compacto} />
-                  <StatCard label="Resueltos" value={resumen.resueltos} icon="✓" hint="Atención completada" color={C.green} compacto={compacto} />
+                  <StatCard label="Todos los tickets" value={resumen.total} icon="▤" hint="Registros del sistema" color={isDark ? C_DARK.brand : C_LIGHT.brand} compacto={compacto} isDark={isDark} />
+                  <StatCard label="Abiertos" value={resumen.abiertos} icon="◷" hint="Pendientes de asignación" color={isDark ? C_DARK.brand : C_LIGHT.brand} compacto={compacto} isDark={isDark} />
+                  <StatCard label="En atención" value={resumen.proceso} icon="⚒" hint="Asignados o en proceso" color={C.amber} compacto={compacto} isDark={isDark} />
+                  <StatCard label="Resueltos" value={resumen.resueltos} icon="✓" hint="Atención completada" color={C.green} compacto={compacto} isDark={isDark} />
                 </View>
                 <TicketListPanel
                   titulo="Tickets recientes"
@@ -258,6 +291,7 @@ export default function AdministradorDashboard() {
                   onAssign={null}
                   onDetails={cargarDetalleTicket}
                   onGeneralDetails={cargarDetalleGeneral}
+                  isDark={isDark}
                 />
               </>
             ) : (
@@ -273,13 +307,14 @@ export default function AdministradorDashboard() {
                 onAssign={abrirAsignacion}
                 onDetails={cargarDetalleTicket}
                 onGeneralDetails={cargarDetalleGeneral}
+                isDark={isDark}
               />
             )}
 
             <Text style={styles.footer}>TI ENVIRONMENT · CENTRO DE SOPORTE</Text>
           </ScrollView>
         </View>
-        {compacto ? <MobileNavigation moduloActivo={moduloActivo} onNavigate={setModuloActivo} /> : null}
+        {compacto ? <MobileNavigation moduloActivo={moduloActivo} onNavigate={setModuloActivo} isDark={isDark} /> : null}
       </View>
       <AsignarTecnicoModal
         visible={asignarVisible}
@@ -304,6 +339,7 @@ export default function AdministradorDashboard() {
         seguimiento={historialTicket}
         cargando={cargandoDetalle}
         error={errorDetalle}
+        isDark={isDark}
         onClose={() => setDetalleVisible(false)}
         onRetry={() => ticketDetalle && void cargarDetalleTicket(ticketDetalle)}
       />
@@ -313,22 +349,27 @@ export default function AdministradorDashboard() {
         detalle={detalleGeneral}
         cargando={cargandoDetalleGeneral}
         error={errorDetalleGeneral}
+        isDark={isDark}
         onClose={() => setDetalleGeneralVisible(false)}
         onRetry={() => ticketDetalleGeneral && void cargarDetalleGeneral(ticketDetalleGeneral)}
       />
+      <ProfileThemeModal visible={perfilVisible} onClose={() => setPerfilVisible(false)} name={nombreCompleto} role="Administrador" userId={adminId} isDark={isDark} onChangeTheme={setMode} />
     </SafeAreaView>
   );
 }
 
-function TicketListPanel({ titulo, subtitulo, tickets, total, compacto, cargando, error, onRetry, onAssign, onDetails, onGeneralDetails }) {
+function TicketListPanel({ titulo, subtitulo, tickets, total, compacto, cargando, error, onRetry, onAssign, onDetails, onGeneralDetails, isDark }) {
+  const theme = isDark
+    ? { surface: '#1d2030', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.20)' }
+    : { surface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4' };
   return (
-    <View style={[styles.panel, styles.recentPanel]}>
-      <View style={styles.panelHead}>
+    <View style={[styles.panel, styles.recentPanel, { backgroundColor: theme.surface, borderColor: theme.line }]}>
+      <View style={[styles.panelHead, { backgroundColor: theme.surface, borderBottomColor: theme.line }]}>
         <View>
-          <Text style={styles.panelTitle}>{titulo}</Text>
-          <Text style={styles.panelSubtitle}>{subtitulo}</Text>
+          <Text style={[styles.panelTitle, { color: theme.ink }]}>{titulo}</Text>
+          <Text style={[styles.panelSubtitle, { color: theme.muted }]}>{subtitulo}</Text>
         </View>
-        <Text style={styles.resultCount}>{total} total</Text>
+        <Text style={[styles.resultCount, { color: theme.muted }]}>{total} total</Text>
       </View>
       {cargando ? (
         <View style={styles.stateBox}><ActivityIndicator color={C.brand} /><Text style={styles.stateText}>Cargando tickets…</Text></View>
@@ -342,12 +383,13 @@ function TicketListPanel({ titulo, subtitulo, tickets, total, compacto, cargando
         <View style={styles.stateBox}><Text style={styles.emptyIcon}>▤</Text><Text style={styles.emptyTitle}>Todavía no hay tickets</Text><Text style={styles.stateText}>Cuando se registren solicitudes, aparecerán aquí.</Text></View>
       ) : (
         <View>
-          {!compacto ? <TicketColumns showAssignment={Boolean(onAssign)} showDetails={Boolean(onDetails || onGeneralDetails)} /> : null}
+          {!compacto ? <TicketColumns showAssignment={Boolean(onAssign)} showDetails={Boolean(onDetails || onGeneralDetails)} isDark={isDark} /> : null}
           {tickets.map((ticket) => (
             <TicketRow
               key={ticket.idTicket}
               ticket={ticket}
               compacto={compacto}
+              isDark={isDark}
               onAssign={onAssign ? () => onAssign(ticket) : null}
               onDetails={onDetails ? () => onDetails(ticket) : null}
               onGeneralDetails={onGeneralDetails && esResuelto(ticket) ? () => onGeneralDetails(ticket) : null}
@@ -359,8 +401,11 @@ function TicketListPanel({ titulo, subtitulo, tickets, total, compacto, cargando
   );
 }
 
-function DetalleTicketAdminModal({ visible, ticket, detalle, seguimiento, cargando, error, onClose, onRetry }) {
+function DetalleTicketAdminModal({ visible, ticket, detalle, seguimiento, cargando, error, onClose, onRetry, isDark }) {
   const item = detalle || ticket || {};
+  const theme = isDark
+    ? { surface: '#1a1d2e', raised: '#252a3d', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.24)', brand: '#60D9FF' }
+    : { surface: '#ffffff', raised: '#f7f9fc', ink: '#18233b', muted: '#78859a', line: '#e7edf4', brand: '#355df4' };
   const codigo = item.codigoTicket || item.tickets || `TCK-${String(item.idTicket || '').padStart(6, '0')}`;
   const estado = texto(item.estadoTicket, 'Sin estado');
   const estilo = estiloEstado(estado);
@@ -369,14 +414,14 @@ function DetalleTicketAdminModal({ visible, ticket, detalle, seguimiento, cargan
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={styles.ticketDetailOverlay}>
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle" onPress={onClose} style={styles.assignmentBackdrop} />
-        <View style={styles.ticketDetailCard}>
-          <View style={styles.ticketDetailHeader}>
+        <View style={[styles.ticketDetailCard, { backgroundColor: theme.surface, borderColor: theme.line }]}>
+          <View style={[styles.ticketDetailHeader, { backgroundColor: theme.surface, borderBottomColor: theme.line }]}>
             <View style={styles.pageHeadCopy}>
-              <Text style={styles.eyebrow}>DETALLE Y SEGUIMIENTO</Text>
-              <Text style={styles.assignmentTitle}>{codigo}</Text>
+              <Text style={[styles.eyebrow, { color: theme.brand }]}>DETALLE Y SEGUIMIENTO</Text>
+              <Text style={[styles.assignmentTitle, { color: theme.ink }]}>{codigo}</Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle" onPress={onClose} style={styles.assignmentClose}>
-              <Text style={styles.assignmentCloseText}>×</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle" onPress={onClose} style={[styles.assignmentClose, { backgroundColor: theme.raised }]}>
+              <Text style={[styles.assignmentCloseText, { color: theme.ink }]}>×</Text>
             </Pressable>
           </View>
 
@@ -391,29 +436,29 @@ function DetalleTicketAdminModal({ visible, ticket, detalle, seguimiento, cargan
               </View>
             ) : (
               <>
-                <View style={styles.ticketDetailSummary}>
+                <View style={[styles.ticketDetailSummary, { backgroundColor: theme.raised }]}>
                   <StatusBadge status={estado} style={estilo} />
-                  <Text style={styles.ticketDetailDescription}>{texto(item.descripcion, 'Sin descripción')}</Text>
+                  <Text style={[styles.ticketDetailDescription, { color: theme.ink }]}>{texto(item.descripcion, 'Sin descripción')}</Text>
                 </View>
                 <View style={styles.ticketDetailFields}>
-                  <TicketDetailField label="Solicitante" value={item.solicitante} />
-                  <TicketDetailField label="Técnico" value={item.tecnico || 'Sin asignar'} />
-                  <TicketDetailField label="Categoría" value={item.categoria} />
-                  <TicketDetailField label="Prioridad" value={item.prioridad} />
-                  <TicketDetailField label="Creado" value={fechaVisible(item.fechaCreacion || item.fehaCreacion)} />
-                  {item.fechaSolucion ? <TicketDetailField label="Resuelto" value={fechaVisible(item.fechaSolucion)} /> : null}
+                  <TicketDetailField label="Solicitante" value={item.solicitante} isDark={isDark} />
+                  <TicketDetailField label="Técnico" value={item.tecnico || 'Sin asignar'} isDark={isDark} />
+                  <TicketDetailField label="Categoría" value={item.categoria} isDark={isDark} />
+                  <TicketDetailField label="Prioridad" value={item.prioridad} isDark={isDark} />
+                  <TicketDetailField label="Creado" value={fechaVisible(item.fechaCreacion || item.fehaCreacion)} isDark={isDark} />
+                  {item.fechaSolucion ? <TicketDetailField label="Resuelto" value={fechaVisible(item.fechaSolucion)} isDark={isDark} /> : null}
                 </View>
                 <View style={styles.ticketTimeline}>
-                  <Text style={styles.ticketTimelineTitle}>Historial del ticket</Text>
+                  <Text style={[styles.ticketTimelineTitle, { color: theme.ink }]}>Historial del ticket</Text>
                   {seguimiento.length === 0 ? (
                     <Text style={styles.stateText}>Todavía no hay actualizaciones de seguimiento.</Text>
                   ) : seguimiento.map((evento, index) => (
                     <View key={evento.idSeguimientoTicket || `${evento.fechaSeguimiento}-${index}`} style={styles.ticketTimelineItem}>
                       <View style={styles.ticketTimelineMarker}><View style={styles.ticketTimelineDot} /></View>
-                      <View style={styles.ticketTimelineCopy}>
-                        <Text style={styles.ticketTimelineEventTitle}>{texto(evento.titulo, 'Actualización del ticket')}</Text>
-                        <Text style={styles.ticketTimelineDescription}>{texto(evento.descripsion || evento.descripcion, 'Sin descripción adicional.')}</Text>
-                        <Text style={styles.ticketTimelineMeta}>{texto(evento.responsable, 'Sistema')} · {fechaVisible(evento.fechaSeguimiento)}</Text>
+                      <View style={[styles.ticketTimelineCopy, { borderBottomColor: theme.line }]}>
+                        <Text style={[styles.ticketTimelineEventTitle, { color: theme.ink }]}>{texto(evento.titulo, 'Actualización del ticket')}</Text>
+                        <Text style={[styles.ticketTimelineDescription, { color: theme.muted }]}>{texto(evento.descripsion || evento.descripcion, 'Sin descripción adicional.')}</Text>
+                        <Text style={[styles.ticketTimelineMeta, { color: theme.muted }]}>{texto(evento.responsable, 'Sistema')} · {fechaVisible(evento.fechaSeguimiento)}</Text>
                       </View>
                     </View>
                   ))}
@@ -427,11 +472,14 @@ function DetalleTicketAdminModal({ visible, ticket, detalle, seguimiento, cargan
   );
 }
 
-function TicketDetailField({ label, value }) {
+function TicketDetailField({ label, value, isDark }) {
+  const theme = isDark
+    ? { surface: '#252a3d', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.20)' }
+    : { surface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4' };
   return (
-    <View style={styles.ticketDetailField}>
-      <Text style={styles.ticketDetailFieldLabel}>{label}</Text>
-      <Text style={styles.ticketDetailFieldValue}>{texto(value)}</Text>
+    <View style={[styles.ticketDetailField, { backgroundColor: theme.surface, borderColor: theme.line }]}>
+      <Text style={[styles.ticketDetailFieldLabel, { color: theme.muted }]}>{label}</Text>
+      <Text style={[styles.ticketDetailFieldValue, { color: theme.ink }]}>{texto(value)}</Text>
     </View>
   );
 }
@@ -504,11 +552,11 @@ function AsignarTecnicoModal({
   );
 }
 
-function Sidebar({ moduloActivo, onNavigate }) {
+function Sidebar({ moduloActivo, onNavigate, onProfile, isDark }) {
   return (
     <View style={styles.sidebar}>
       <View style={styles.brandRow}>
-        <BrandLogo size={40} titleSize={14} subtitleSize={9} subtitle="MESA DE AYUDA TI" />
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil y apariencia" onPress={onProfile}><BrandLogo size={40} titleSize={14} subtitleSize={9} subtitle="MESA DE AYUDA TI" light={isDark} /></Pressable>
       </View>
       <Text style={styles.navLabel}>ESPACIO DE TRABAJO</Text>
       <View style={styles.navItems}>
@@ -517,20 +565,20 @@ function Sidebar({ moduloActivo, onNavigate }) {
       </View>
       <Text style={styles.navLabel}>ADMINISTRACIÓN</Text>
       <View style={styles.navItems}>
-        <NavItem icon="♙" label="Usuarios y técnicos" />
+        <NavItem icon="♙" label="Usuarios y técnicos" active={moduloActivo === 'usuarios' || moduloActivo === 'tecnicos'} onPress={() => onNavigate('usuarios')} />
         <View style={styles.catalogGroup}>
           <View style={styles.catalogParent}>
             <Text style={styles.navIcon}>▦</Text>
             <Text style={styles.navText}>Catálogos</Text>
-            <Text style={styles.navSoon}>PRONTO</Text>
           </View>
           <View style={styles.catalogChildren}>
-            <CatalogNavItem label="Categorías" />
-            <CatalogNavItem label="Prioridades" />
-            <CatalogNavItem label="Roles" />
+            <CatalogNavItem label="Categorías" module="categorias" active={moduloActivo === 'categorias'} onPress={onNavigate} />
+            <CatalogNavItem label="Prioridades" module="prioridades" active={moduloActivo === 'prioridades'} onPress={onNavigate} />
+            <CatalogNavItem label="Roles" module="roles" active={moduloActivo === 'roles'} onPress={onNavigate} />
+            <CatalogNavItem label="Estados" module="estados" active={moduloActivo === 'estados'} onPress={onNavigate} />
           </View>
         </View>
-        <NavItem icon="◴" label="Auditoría" />
+        <NavItem icon="◴" label="Auditoría" active={moduloActivo === 'auditoria'} onPress={() => onNavigate('auditoria')} />
       </View>
       <View style={styles.sidebarBottom}>
         <View style={styles.adminChip}>
@@ -545,18 +593,18 @@ function Sidebar({ moduloActivo, onNavigate }) {
   );
 }
 
-function MobileHeader({ nombre }) {
+function MobileHeader({ nombre, onProfile, isDark }) {
   return (
     <View style={styles.mobileHeader}>
       <View style={styles.mobileBrandCopy}>
-        <BrandLogo size={40} titleSize={14} subtitleSize={9} subtitle={nombre || 'ADMINISTRACIÓN'} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil y apariencia" onPress={onProfile}><BrandLogo size={40} titleSize={14} subtitleSize={9} subtitle={nombre || 'ADMINISTRACIÓN'} light={isDark} /></Pressable>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={() => router.replace('/')} style={styles.mobileLogout}><Text style={styles.logoutIcon}>↪</Text></Pressable>
     </View>
   );
 }
 
-function MobileNavigation({ moduloActivo, onNavigate }) {
+function MobileNavigation({ moduloActivo, onNavigate, isDark }) {
   const items = [
     ['⌂', 'Resumen', 'resumen'],
     ['▤', 'Tickets', 'tickets'],
@@ -566,12 +614,14 @@ function MobileNavigation({ moduloActivo, onNavigate }) {
   ];
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mobileNavigationScroll} contentContainerStyle={styles.mobileNavigation}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.mobileNavigationScroll, { backgroundColor: isDark ? '#1d2030' : '#ffffff', borderTopColor: isDark ? 'rgba(158,218,255,0.42)' : '#e7edf4' }]} contentContainerStyle={styles.mobileNavigation}>
       {items.map(([icon, label, module]) => {
-        const active = moduloActivo === module;
-        const available = module === 'resumen' || module === 'tickets';
+        const active = module === 'catalogos' ? modulosCatalogo.includes(moduloActivo)
+          : module === 'usuarios' ? moduloActivo === 'usuarios' || moduloActivo === 'tecnicos'
+            : moduloActivo === module;
+        const available = module === 'resumen' || module === 'tickets' || module === 'catalogos' || module === 'usuarios' || module === 'auditoria';
         return (
-          <Pressable key={label} disabled={!available} onPress={() => onNavigate(module)} style={[styles.mobileNavItem, active && styles.mobileNavItemActive]}>
+          <Pressable key={label} disabled={!available} onPress={() => onNavigate(module === 'catalogos' ? 'categorias' : module)} style={[styles.mobileNavItem, active && styles.mobileNavItemActive, active && { backgroundColor: isDark ? 'rgba(66,174,255,0.20)' : '#ecf0ff' }]}>
             <Text style={[styles.mobileNavIcon, active && styles.mobileNavTextActive]}>{icon}</Text>
             <Text style={[styles.mobileNavText, active && styles.mobileNavTextActive]}>{label}</Text>
             {!available ? <Text style={styles.mobileNavSoon}>PRONTO</Text> : null}
@@ -583,9 +633,14 @@ function MobileNavigation({ moduloActivo, onNavigate }) {
 }
 
 function Topbar({ nombre, modulo }) {
+  const nombreModulo = {
+    resumen: 'Resumen', tickets: 'Tickets', categorias: 'Categorías', auditoria: 'Auditoría',
+    prioridades: 'Prioridades', roles: 'Roles', estados: 'Estados',
+    usuarios: 'Usuarios y técnicos', tecnicos: 'Usuarios y técnicos',
+  }[modulo] || 'Resumen';
   return (
     <View style={styles.topbar}>
-      <Text style={styles.crumb}>TI ENVIRONMENT  /  <Text style={styles.crumbCurrent}>{modulo === 'tickets' ? 'Tickets' : 'Resumen'}</Text></Text>
+      <Text style={styles.crumb}>TI ENVIRONMENT  /  <Text style={styles.crumbCurrent}>{nombreModulo}</Text></Text>
       <View style={styles.topbarRight}><Text style={styles.adminTag}>● ADMINISTRADOR</Text><View style={styles.topAvatar}><Text style={styles.topAvatarText}>{nombre ? nombre[0].toUpperCase() : 'A'}</Text></View></View>
     </View>
   );
@@ -602,41 +657,48 @@ function NavItem({ icon, label, active = false, onPress }) {
   );
 }
 
-function CatalogNavItem({ label }) {
+function CatalogNavItem({ label, module, active, onPress }) {
   return (
-    <View style={styles.catalogChild}>
-      <View style={styles.catalogChildDot} />
-      <Text style={styles.catalogChildText}>{label}</Text>
-      <Text style={styles.catalogChildStatus}>PRONTO</Text>
+    <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => onPress(module)} style={[styles.catalogChild, active && styles.catalogChildActive]}>
+      <View style={[styles.catalogChildDot, active && styles.catalogChildDotActive]} />
+      <Text style={[styles.catalogChildText, active && styles.catalogChildTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function StatCard({ label, value, icon, hint, color, compacto, isDark }) {
+  const theme = isDark
+    ? { surface: '#1d2030', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.20)' }
+    : { surface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4' };
+  return (
+    <View style={[styles.statCard, compacto && styles.statCardCompact, { backgroundColor: theme.surface, borderColor: theme.line }]}>
+      <View style={styles.statTop}><Text style={[styles.statLabel, { color: theme.muted }]}>{label}</Text><View style={[styles.statIcon, { backgroundColor: `${color}15` }]}><Text style={[styles.statIconText, { color }]}>{icon}</Text></View></View>
+      <Text style={[styles.statValue, { color: theme.ink }]}>{value}</Text>
+      <Text style={[styles.statHint, { color: theme.muted }]}>{hint}</Text>
     </View>
   );
 }
 
-function StatCard({ label, value, icon, hint, color, compacto }) {
+function TicketColumns({ showAssignment = false, showDetails = false, isDark }) {
+  const theme = isDark ? { surface: '#1d2030', muted: '#B4C0D8' } : { surface: '#f9fbfd', muted: '#78859a' };
+  const columnStyle = [styles.columnText, { color: theme.muted }];
   return (
-    <View style={[styles.statCard, compacto && styles.statCardCompact]}>
-      <View style={styles.statTop}><Text style={styles.statLabel}>{label}</Text><View style={[styles.statIcon, { backgroundColor: `${color}15` }]}><Text style={[styles.statIconText, { color }]}>{icon}</Text></View></View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statHint}>{hint}</Text>
+    <View style={[styles.ticketColumns, { backgroundColor: theme.surface }]}>
+      <Text style={[columnStyle, styles.columnTicket]}>TICKET</Text>
+      <Text style={[columnStyle, styles.columnCategory]}>CATEGORÍA</Text>
+      <Text style={[columnStyle, styles.columnPriority]}>PRIORIDAD</Text>
+      <Text style={[columnStyle, styles.columnStatus]}>ESTADO</Text>
+      <Text style={[columnStyle, styles.columnTechnician]}>TÉCNICO</Text>
+      <Text style={[columnStyle, styles.columnDate]}>FECHA</Text>
+      {showAssignment || showDetails ? <Text style={[columnStyle, styles.columnAction]}>ACCIONES</Text> : null}
     </View>
   );
 }
 
-function TicketColumns({ showAssignment = false, showDetails = false }) {
-  return (
-    <View style={styles.ticketColumns}>
-      <Text style={[styles.columnText, styles.columnTicket]}>TICKET</Text>
-      <Text style={[styles.columnText, styles.columnCategory]}>CATEGORÍA</Text>
-      <Text style={[styles.columnText, styles.columnPriority]}>PRIORIDAD</Text>
-      <Text style={[styles.columnText, styles.columnStatus]}>ESTADO</Text>
-      <Text style={[styles.columnText, styles.columnTechnician]}>TÉCNICO</Text>
-      <Text style={[styles.columnText, styles.columnDate]}>FECHA</Text>
-      {showAssignment || showDetails ? <Text style={[styles.columnText, styles.columnAction]}>ACCIONES</Text> : null}
-    </View>
-  );
-}
-
-function TicketRow({ ticket, compacto, onAssign, onDetails, onGeneralDetails }) {
+function TicketRow({ ticket, compacto, onAssign, onDetails, onGeneralDetails, isDark }) {
+  const theme = isDark
+    ? { surface: '#1d2030', ink: '#F3F7FF', muted: '#B4C0D8', brand: '#60D9FF', line: 'rgba(158,218,255,0.20)' }
+    : { surface: '#ffffff', ink: '#18233b', muted: '#78859a', brand: '#355df4', line: '#e7edf4' };
   const ticketCode = texto(ticket.tickets, `TCK-${String(ticket.idTicket).padStart(6, '0')}`);
   const prioridad = texto(ticket.prioridad);
   const status = texto(ticket.estadoTicket, 'Sin estado');
@@ -646,17 +708,17 @@ function TicketRow({ ticket, compacto, onAssign, onDetails, onGeneralDetails }) 
 
   if (compacto) {
     return (
-      <View style={styles.ticketCard}>
+      <View style={[styles.ticketCard, { backgroundColor: theme.surface, borderTopColor: theme.line }]}>
         <View style={styles.ticketCardTop}>
-          <Text style={styles.ticketCode}>{ticketCode}</Text>
+          <Text style={[styles.ticketCode, { color: theme.brand }]}>{ticketCode}</Text>
           <StatusBadge status={status} style={badgeStyle} />
         </View>
-        <Text numberOfLines={2} style={styles.ticketDescription}>{texto(ticket.descripcion, 'Sin descripción')}</Text>
+        <Text numberOfLines={2} style={[styles.ticketDescription, { color: theme.ink }]}>{texto(ticket.descripcion, 'Sin descripción')}</Text>
         <View style={styles.ticketMetaRow}>
-          <Text style={styles.ticketMeta}>{texto(ticket.categoria)}</Text>
-          <Text style={[styles.ticketMeta, { color: priorityColor }]}>● {prioridad}</Text>
+          <Text style={[styles.ticketMeta, { color: theme.muted }]}>{texto(ticket.categoria)}</Text>
+          <View style={[styles.priorityBadge, { backgroundColor: fondoPrioridad(priorityColor), borderColor: colorBordePrioridad(priorityColor) }]}><View style={[styles.priorityDot, { backgroundColor: priorityColor }]} /><Text style={[styles.priorityBadgeText, { color: priorityColor }]}>{prioridad}</Text></View>
         </View>
-        <Text style={styles.ticketFooterMeta}>{texto(ticket.tecnico, 'Sin asignar')}  ·  {fechaVisible(ticket.fehaCreacion)}</Text>
+        <Text style={[styles.ticketFooterMeta, { color: theme.muted }]}>{texto(ticket.tecnico, 'Sin asignar')}  ·  {fechaVisible(ticket.fehaCreacion)}</Text>
         <View style={styles.mobileTicketActions}>
           {onDetails ? <Pressable accessibilityRole="button" onPress={onDetails} style={styles.detailTicketButton}><Text style={styles.detailTicketButtonText}>Ver detalle y seguimiento</Text></Pressable> : null}
           {onGeneralDetails ? <Pressable accessibilityRole="button" onPress={onGeneralDetails} style={styles.generalTicketButton}><Text style={styles.generalTicketButtonText}>Ver detalle general</Text></Pressable> : null}
@@ -671,16 +733,16 @@ function TicketRow({ ticket, compacto, onAssign, onDetails, onGeneralDetails }) 
   }
 
   return (
-    <View style={styles.ticketRow}>
+    <View style={[styles.ticketRow, { backgroundColor: theme.surface, borderTopColor: theme.line }]}>
       <View style={styles.ticketCell}>
-        <Text style={styles.ticketCode}>{ticketCode}</Text>
-        <Text numberOfLines={1} style={styles.ticketDescription}>{texto(ticket.descripcion, 'Sin descripción')}</Text>
+        <Text style={[styles.ticketCode, { color: theme.brand }]}>{ticketCode}</Text>
+        <Text numberOfLines={1} style={[styles.ticketDescription, { color: theme.ink }]}>{texto(ticket.descripcion, 'Sin descripción')}</Text>
       </View>
-      <Text numberOfLines={1} style={[styles.cellText, styles.columnCategory]}>{texto(ticket.categoria)}</Text>
-      <View style={styles.priorityCell}><View style={[styles.priorityDot, { backgroundColor: priorityColor }]} /><Text style={styles.cellText}>{prioridad}</Text></View>
+      <Text numberOfLines={1} style={[styles.cellText, styles.columnCategory, { color: theme.muted }]}>{texto(ticket.categoria)}</Text>
+      <View style={styles.priorityCell}><View style={[styles.priorityDot, { backgroundColor: priorityColor }]} /><Text style={[styles.cellText, { color: theme.muted }]}>{prioridad}</Text></View>
       <View style={styles.statusCell}><StatusBadge status={status} style={badgeStyle} /></View>
-      <Text numberOfLines={1} style={[styles.cellText, styles.columnTechnician]}>{texto(ticket.tecnico, 'Sin asignar')}</Text>
-      <Text style={[styles.cellText, styles.columnDate]}>{fechaVisible(ticket.fehaCreacion)}</Text>
+      <Text numberOfLines={1} style={[styles.cellText, styles.columnTechnician, { color: theme.muted }]}>{texto(ticket.tecnico, 'Sin asignar')}</Text>
+      <Text style={[styles.cellText, styles.columnDate, { color: theme.muted }]}>{fechaVisible(ticket.fehaCreacion)}</Text>
       {puedeAsignar || onDetails || onGeneralDetails ? (
         <View style={styles.assignmentActionCell}>
           {onDetails ? <Pressable accessibilityRole="button" onPress={onDetails} style={styles.detailTicketButton}><Text style={styles.detailTicketButtonText}>Detalle</Text></Pressable> : null}
@@ -690,6 +752,18 @@ function TicketRow({ ticket, compacto, onAssign, onDetails, onGeneralDetails }) 
       ) : null}
     </View>
   );
+}
+
+function fondoPrioridad(color) {
+  if (color === C.red) return 'rgba(255, 91, 121, 0.15)';
+  if (color === C.amber) return 'rgba(255, 193, 74, 0.15)';
+  return 'rgba(49, 226, 175, 0.15)';
+}
+
+function colorBordePrioridad(color) {
+  if (color === C.red) return 'rgba(255, 91, 121, 0.42)';
+  if (color === C.amber) return 'rgba(255, 193, 74, 0.42)';
+  return 'rgba(49, 226, 175, 0.42)';
 }
 
 function StatusBadge({ status, style }) {
@@ -705,9 +779,10 @@ function estiloEstado(estado) {
   return { backgroundColor: '#eef3ff', color: C.brand };
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: C.background },
-  layout: { flex: 1, flexDirection: 'row', backgroundColor: C.background },
+function createStyles() { return StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#080914', position: 'relative' },
+  safeAreaLight: { backgroundColor: '#f4f7fb' },
+  layout: { flex: 1, flexDirection: 'row', backgroundColor: 'transparent' },
   layoutCompacto: { flexDirection: 'column' },
   sidebar: { width: 250, backgroundColor: C.surface, borderRightWidth: 1, borderRightColor: C.line, paddingHorizontal: 17, paddingTop: 26, paddingBottom: 15 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingBottom: 30 },
@@ -723,11 +798,14 @@ const styles = StyleSheet.create({
   assignmentSuccess: { paddingHorizontal: 14, paddingVertical: 11, marginBottom: 16, borderRadius: 10, backgroundColor: '#e6f7ef' },
   assignmentSuccessText: { color: C.green, fontSize: 11, fontWeight: '700' },
   catalogGroup: { marginTop: 3 },
-  catalogParent: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 9, paddingHorizontal: 13, opacity: 0.66 },
+  catalogParent: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 9, paddingHorizontal: 13 },
   catalogChildren: { marginLeft: 35, marginTop: 1, marginBottom: 4, paddingLeft: 11, borderLeftWidth: 1, borderLeftColor: C.line, gap: 2 },
   catalogChild: { minHeight: 27, flexDirection: 'row', alignItems: 'center', gap: 7 },
   catalogChildDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#a4aec0' },
   catalogChildText: { flex: 1, color: '#78859a', fontSize: 10, fontWeight: '600' },
+  catalogChildActive: { backgroundColor: '#f3f6ff', borderRadius: 7, paddingHorizontal: 6, marginLeft: -6 },
+  catalogChildDotActive: { backgroundColor: C.brand },
+  catalogChildTextActive: { color: C.brand, fontWeight: '800' },
   catalogChildStatus: { color: '#a4aec0', fontSize: 6, fontWeight: '800', letterSpacing: 0.2 },
   sidebarBottom: { marginTop: 'auto', borderTopWidth: 1, borderTopColor: C.line, paddingTop: 15 },
   adminChip: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, paddingVertical: 7 },
@@ -738,7 +816,7 @@ const styles = StyleSheet.create({
   logoutButton: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11, marginTop: 5, borderRadius: 9, backgroundColor: C.brandLight },
   logoutIcon: { color: C.brand, fontSize: 16 },
   logoutText: { color: C.brand, fontSize: 12, fontWeight: '700' },
-  main: { flex: 1, minWidth: 0 },
+  main: { flex: 1, minWidth: 0, backgroundColor: 'transparent' },
   topbar: { height: 70, paddingHorizontal: 34, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   crumb: { color: '#9aa5b6', fontSize: 12 },
   crumbCurrent: { color: C.ink, fontWeight: '700' },
@@ -769,7 +847,7 @@ const styles = StyleSheet.create({
   refreshText: { color: C.ink, fontSize: 11, fontWeight: '700' },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 13, marginBottom: 21 },
   statsCompact: { gap: 9 },
-  statCard: { flexGrow: 1, flexBasis: 0, minWidth: 145, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 17, shadowColor: '#21385d', shadowOpacity: 0.035, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
+  statCard: { flexGrow: 1, flexBasis: 0, minWidth: 145, backgroundColor: C.cardSurface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 17, shadowColor: '#00CFFF', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
   statCardCompact: { width: '48%', minWidth: 0, flexBasis: '48%', padding: 13 },
   statTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   statLabel: { color: C.muted, fontSize: 10, fontWeight: '700', flex: 1 },
@@ -777,13 +855,13 @@ const styles = StyleSheet.create({
   statIconText: { fontSize: 16, fontWeight: '800' },
   statValue: { color: C.ink, fontSize: 27, fontWeight: '800', marginTop: 9 },
   statHint: { color: '#a2acbc', fontSize: 9, marginTop: 3 },
-  panel: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden', shadowColor: '#21385d', shadowOpacity: 0.035, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
+  panel: { backgroundColor: C.cardSurface, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden', shadowColor: '#00CFFF', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
   recentPanel: { width: '100%' },
   panelHead: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 18, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.line },
   panelTitle: { color: C.ink, fontSize: 14, fontWeight: '800' },
   panelSubtitle: { color: C.muted, fontSize: 10, marginTop: 4 },
   resultCount: { color: C.muted, fontSize: 10 },
-  ticketColumns: { minHeight: 39, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, backgroundColor: '#f9fbfd' },
+  ticketColumns: { minHeight: 39, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, backgroundColor: C.ticketHeader },
   columnText: { color: '#8996a8', fontSize: 8, fontWeight: '800' },
   columnTicket: { flex: 2.2, minWidth: 120 },
   columnCategory: { flex: 0.95, minWidth: 62 },
@@ -792,24 +870,26 @@ const styles = StyleSheet.create({
   columnTechnician: { flex: 0.9, minWidth: 60 },
   columnDate: { flex: 0.85, minWidth: 72, textAlign: 'right' },
   columnAction: { width: 220, textAlign: 'right' },
-  ticketRow: { minHeight: 65, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#f0f3f7', gap: 5 },
+  ticketRow: { minHeight: 65, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 9, backgroundColor: C.ticketSurface, borderTopWidth: 1, borderTopColor: C.ticketLine, gap: 5 },
   ticketCell: { flex: 2.2, minWidth: 120, paddingRight: 8 },
   ticketCode: { color: C.brand, fontSize: 10, fontWeight: '800' },
   ticketDescription: { color: C.ink, fontSize: 10, fontWeight: '700', marginTop: 4 },
   cellText: { color: '#536078', fontSize: 9 },
   priorityCell: { flex: 0.75, minWidth: 55, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  priorityDot: { height: 6, width: 6, borderRadius: 4 },
+  priorityDot: { height: 7, width: 7, borderRadius: 4 },
+  priorityBadge: { minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  priorityBadgeText: { fontSize: 9, fontWeight: '800' },
   statusCell: { flex: 1, minWidth: 72, alignItems: 'flex-start' },
   statusBadge: { width: 'auto', flexGrow: 0, alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 5 },
   statusBadgeText: { fontSize: 8, fontWeight: '800' },
-  ticketCard: { padding: 14, borderTopWidth: 1, borderTopColor: '#f0f3f7' },
+  ticketCard: { padding: 14, backgroundColor: C.ticketSurface, borderTopWidth: 1, borderTopColor: C.ticketLine },
   ticketCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   ticketMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   ticketMeta: { color: C.muted, fontSize: 10, fontWeight: '700' },
   ticketFooterMeta: { color: '#9aa5b6', fontSize: 9, marginTop: 8 },
   assignmentActionCell: { width: 220, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5 },
   mobileTicketActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7, marginTop: 10 },
-  detailTicketButton: { minHeight: 30, justifyContent: 'center', paddingHorizontal: 9, borderWidth: 1, borderColor: C.line, borderRadius: 8, backgroundColor: '#fff' },
+  detailTicketButton: { minHeight: 30, justifyContent: 'center', paddingHorizontal: 9, borderWidth: 1, borderColor: C.line, borderRadius: 8, backgroundColor: C.surface },
   detailTicketButtonText: { color: C.muted, fontSize: 9, fontWeight: '800' },
   generalTicketButton: { alignSelf: 'flex-start', minHeight: 30, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 8, backgroundColor: '#e6f7ef' },
   generalTicketButtonText: { color: C.green, fontSize: 9, fontWeight: '800' },
@@ -825,7 +905,7 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   assignmentOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: 'rgba(15, 27, 48, 0.4)' },
   assignmentBackdrop: { ...StyleSheet.absoluteFillObject },
-  assignmentCard: { width: '100%', maxWidth: 520, maxHeight: '90%', padding: 21, borderRadius: 18, backgroundColor: C.surface, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+  assignmentCard: { width: '100%', maxWidth: 520, maxHeight: '90%', padding: 21, borderRadius: 18, backgroundColor: C.modalSurface, borderWidth: 1, borderColor: C.line, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
   assignmentHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: C.line },
   assignmentTitle: { color: C.ink, fontSize: 21, fontWeight: '800', marginTop: 6 },
   assignmentClose: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f6fb' },
@@ -833,7 +913,7 @@ const styles = StyleSheet.create({
   assignmentLabel: { color: '#3c4c65', fontSize: 11, fontWeight: '800', marginTop: 17, marginBottom: 9 },
   assignmentState: { minHeight: 155, alignItems: 'center', justifyContent: 'center', padding: 16, gap: 10 },
   technicianOptions: { maxHeight: 280 },
-  technicianOption: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: C.line, borderRadius: 11, marginBottom: 7, backgroundColor: '#fff' },
+  technicianOption: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: C.line, borderRadius: 11, marginBottom: 7, backgroundColor: C.surface },
   technicianOptionSelected: { borderColor: C.brand, backgroundColor: C.brandLight },
   technicianAvatar: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f3f8' },
   technicianAvatarSelected: { backgroundColor: '#dce5ff' },
@@ -851,13 +931,13 @@ const styles = StyleSheet.create({
   assignmentDisabled: { opacity: 0.55 },
   assignmentConfirmText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   ticketDetailOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: 'rgba(15, 27, 48, 0.4)' },
-  ticketDetailCard: { width: '100%', maxWidth: 620, maxHeight: '90%', borderRadius: 18, overflow: 'hidden', backgroundColor: C.surface, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+  ticketDetailCard: { width: '100%', maxWidth: 620, maxHeight: '90%', borderRadius: 18, overflow: 'hidden', backgroundColor: C.modalSurface, borderWidth: 1, borderColor: C.line, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
   ticketDetailHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, paddingHorizontal: 22, paddingTop: 21, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: C.line },
   ticketDetailContent: { padding: 22, paddingBottom: 25 },
   ticketDetailSummary: { padding: 15, borderRadius: 12, backgroundColor: '#f7f9fc' },
   ticketDetailDescription: { color: C.ink, fontSize: 13, fontWeight: '700', lineHeight: 20, marginTop: 10 },
   ticketDetailFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  ticketDetailField: { width: '48%', minWidth: 130, padding: 11, borderWidth: 1, borderColor: C.line, borderRadius: 10, backgroundColor: '#fff' },
+  ticketDetailField: { width: '48%', minWidth: 130, padding: 11, borderWidth: 1, borderColor: C.line, borderRadius: 10, backgroundColor: C.surface },
   ticketDetailFieldLabel: { color: '#99a4b5', fontSize: 9, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   ticketDetailFieldValue: { color: C.ink, fontSize: 11, fontWeight: '700', marginTop: 5 },
   ticketTimeline: { marginTop: 22 },
@@ -870,4 +950,14 @@ const styles = StyleSheet.create({
   ticketTimelineDescription: { color: C.muted, fontSize: 10, lineHeight: 16, marginTop: 4 },
   ticketTimelineMeta: { color: '#9aa5b6', fontSize: 9, marginTop: 5 },
   footer: { color: '#a2acbc', textAlign: 'center', fontSize: 8, fontWeight: '800', letterSpacing: 1, marginTop: 24 },
-});
+}); }
+styles = createStyles();
+
+
+
+
+
+
+
+
+

@@ -24,13 +24,19 @@ import {
   obtenerTicketsPorUsuario,
 } from '../../API/api';
 import BrandLogo from '../../components/BrandLogo';
+import GlassBackdrop from '../../components/GlassBackdrop';
 import DetalleGeneralTicketModal from '../../components/DetalleGeneralTicketModal';
+import ProfileThemeModal from '../../components/ProfileThemeModal';
+import { useAppTheme } from '../../context/AppThemeContext';
 
-const C = {
-  background: '#f4f7fb', surface: '#ffffff', ink: '#18233b', muted: '#78859a',
-  line: '#e7edf4', brand: '#355df4', brandLight: '#ecf0ff', green: '#19966b',
-  amber: '#bb7a17', red: '#d44a51', purple: '#8558e9',
+const C_DARK = {
+  background: '#080914', surface: 'rgba(35,39,58,0.78)', modalSurface: '#1a1d2e', ink: '#F3F7FF', muted: '#B4C0D8',
+  line: 'rgba(158,218,255,0.42)', brand: '#60D9FF', brandLight: 'rgba(66,174,255,0.20)', green: '#19966b',
+  amber: '#bb7a17', red: '#d44a51', purple: '#8558e9', ticketSurface: '#1d2030', ticketLine: 'rgba(158,218,255,0.20)', inputSurface: '#111525',
 };
+const C_LIGHT = { background: '#f4f7fb', surface: '#ffffff', modalSurface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4', brand: '#355df4', brandLight: '#ecf0ff', green: '#19966b', amber: '#bb7a17', red: '#d44a51', purple: '#8558e9', ticketSurface: '#ffffff', ticketLine: '#e7edf4', inputSurface: '#fbfcfe' };
+let C = C_DARK;
+let styles;
 
 function normalizarEstado(estado) {
   return String(estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -62,6 +68,9 @@ function fechaVisible(value) {
 }
 
 export default function UsuarioDashboard() {
+  const { isDark, setMode } = useAppTheme();
+  C = isDark ? C_DARK : C_LIGHT;
+  styles = useMemo(() => createStyles(), [isDark]);
   const { idUsuario, nombre, apellido } = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const [hidratado, setHidratado] = useState(false);
@@ -94,6 +103,7 @@ export default function UsuarioDashboard() {
   const [detalleGeneral, setDetalleGeneral] = useState(null);
   const [cargandoDetalleGeneral, setCargandoDetalleGeneral] = useState(false);
   const [errorDetalleGeneral, setErrorDetalleGeneral] = useState('');
+  const [perfilVisible, setPerfilVisible] = useState(false);
 
   const categoriasActivas = useMemo(() => categorias
     .filter((item) => esCatalogoActivo(item.estado ?? item.Estado))
@@ -233,10 +243,11 @@ export default function UsuarioDashboard() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, !isDark && styles.safeAreaLight]}>
+      <GlassBackdrop isDark={isDark} />
       <View style={styles.layout}>
-        <View style={styles.header}>
-          <BrandLogo size={42} titleSize={14} subtitleSize={9} subtitle={nombreCompleto || 'PORTAL DE USUARIO'} />
+        <View style={[styles.header, { backgroundColor: isDark ? '#1d2030' : '#ffffff', borderBottomColor: isDark ? 'rgba(158,218,255,0.20)' : '#e7edf4' }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil y apariencia" onPress={() => setPerfilVisible(true)}><BrandLogo size={42} titleSize={14} subtitleSize={9} subtitle={nombreCompleto || 'PORTAL DE USUARIO'} light={isDark} /></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={() => router.replace('/')} style={styles.logoutButton}>
             <Text style={styles.logoutIcon}>↪</Text>
           </Pressable>
@@ -254,10 +265,10 @@ export default function UsuarioDashboard() {
           {mensaje ? <View style={styles.successBanner}><Text style={styles.successText}>✓  {mensaje}</Text></View> : null}
 
           <View style={[styles.stats, compacto && styles.statsCompact]}>
-            <StatCard label="Mis tickets" value={resumen.total} hint="Solicitudes registradas" color={C.brand} compacto={compacto} />
-            <StatCard label="Abiertos" value={resumen.abiertos} hint="Pendientes de atención" color={C.brand} compacto={compacto} />
-            <StatCard label="En atención" value={resumen.proceso} hint="Asignados o en proceso" color={C.amber} compacto={compacto} />
-            <StatCard label="Resueltos" value={resumen.resueltos} hint="Atención completada" color={C.green} compacto={compacto} />
+            <StatCard label="Mis tickets" value={resumen.total} hint="Solicitudes registradas" color={isDark ? C_DARK.brand : C_LIGHT.brand} compacto={compacto} isDark={isDark} />
+            <StatCard label="Abiertos" value={resumen.abiertos} hint="Pendientes de atención" color={isDark ? C_DARK.brand : C_LIGHT.brand} compacto={compacto} isDark={isDark} />
+            <StatCard label="En atención" value={resumen.proceso} hint="Asignados o en proceso" color={C.amber} compacto={compacto} isDark={isDark} />
+            <StatCard label="Resueltos" value={resumen.resueltos} hint="Atención completada" color={C.green} compacto={compacto} isDark={isDark} />
           </View>
 
           <View style={styles.headerActions}>
@@ -269,13 +280,13 @@ export default function UsuarioDashboard() {
             </Pressable>
           </View>
 
-          <View style={styles.panel}>
-            <View style={styles.panelHead}>
+          <View style={[styles.panel, { backgroundColor: isDark ? '#1d2030' : '#ffffff', borderColor: isDark ? 'rgba(158,218,255,0.20)' : '#e7edf4' }]}>
+            <View style={[styles.panelHead, { backgroundColor: isDark ? '#1d2030' : '#ffffff', borderBottomColor: isDark ? 'rgba(158,218,255,0.20)' : '#e7edf4' }]}>
               <View>
-                <Text style={styles.panelTitle}>Mis tickets</Text>
-                <Text style={styles.panelSubtitle}>Tus solicitudes más recientes</Text>
+                <Text style={[styles.panelTitle, { color: isDark ? '#F3F7FF' : '#18233b' }]}>Mis tickets</Text>
+                <Text style={[styles.panelSubtitle, { color: isDark ? '#B4C0D8' : '#78859a' }]}>Tus solicitudes más recientes</Text>
               </View>
-              <Text style={styles.resultCount}>{tickets.length} total</Text>
+              <Text style={[styles.resultCount, { color: isDark ? '#B4C0D8' : '#78859a' }]}>{tickets.length} total</Text>
             </View>
 
             {cargando ? (
@@ -298,6 +309,7 @@ export default function UsuarioDashboard() {
                   <TicketCard
                     ticket={ticket}
                     compacto={compacto}
+                    isDark={isDark}
                     onPress={() => void cargarDetalle(ticket)}
                     onGeneralDetails={() => void cargarDetalleGeneral(ticket)}
                     showGeneralDetails={esResuelto(ticket)}
@@ -336,6 +348,7 @@ export default function UsuarioDashboard() {
         seguimiento={seguimiento}
         cargando={cargandoDetalle}
         error={errorDetalle}
+        isDark={isDark}
         onClose={() => setDetalleVisible(false)}
         onRetry={() => ticketSeleccionado && void cargarDetalle(ticketSeleccionado)}
       />
@@ -345,9 +358,11 @@ export default function UsuarioDashboard() {
         detalle={detalleGeneral}
         cargando={cargandoDetalleGeneral}
         error={errorDetalleGeneral}
+        isDark={isDark}
         onClose={() => setDetalleGeneralVisible(false)}
         onRetry={() => ticketDetalleGeneral && void cargarDetalleGeneral(ticketDetalleGeneral)}
       />
+      <ProfileThemeModal visible={perfilVisible} onClose={() => setPerfilVisible(false)} name={nombreCompleto} role="Usuario" userId={usuarioId} isDark={isDark} onChangeTheme={setMode} />
     </SafeAreaView>
   );
 }
@@ -455,7 +470,10 @@ function SelectorCatalogo({ placeholder, value, options, abierto, onToggle, onSe
   );
 }
 
-function DetalleTicketModal({ visible, ticket, detalle, seguimiento, cargando, error, onClose, onRetry }) {
+function DetalleTicketModal({ visible, ticket, detalle, seguimiento, cargando, error, onClose, onRetry, isDark }) {
+  const theme = isDark
+    ? { surface: '#1a1d2e', raised: '#252a3d', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.24)', brand: '#60D9FF' }
+    : { surface: '#ffffff', raised: '#f7f9fc', ink: '#18233b', muted: '#78859a', line: '#e7edf4', brand: '#355df4' };
   const item = detalle || ticket || {};
   const codigo = item.codigoTicket || item.tickets || `TCK-${String(item.idTicket || '').padStart(6, '0')}`;
   const estado = item.estadoTicket || 'Sin estado';
@@ -465,14 +483,14 @@ function DetalleTicketModal({ visible, ticket, detalle, seguimiento, cargando, e
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={styles.detailOverlay}>
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle" onPress={onClose} style={styles.modalBackdrop} />
-        <View style={styles.detailCard}>
-          <View style={styles.detailHeader}>
+        <View style={[styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.line }]}>
+          <View style={[styles.detailHeader, { backgroundColor: theme.surface, borderBottomColor: theme.line }]}>
             <View style={styles.formHeaderCopy}>
-              <Text style={styles.eyebrow}>SEGUIMIENTO DE SOLICITUD</Text>
-              <Text style={styles.formTitle}>{codigo}</Text>
+              <Text style={[styles.eyebrow, { color: theme.brand }]}>SEGUIMIENTO DE SOLICITUD</Text>
+              <Text style={[styles.formTitle, { color: theme.ink }]}>{codigo}</Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle" onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>×</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar detalle" onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.raised }]}>
+              <Text style={[styles.closeButtonText, { color: theme.ink }]}>×</Text>
             </Pressable>
           </View>
 
@@ -487,33 +505,33 @@ function DetalleTicketModal({ visible, ticket, detalle, seguimiento, cargando, e
               </View>
             ) : (
               <>
-                <View style={styles.detailSummary}>
+                <View style={[styles.detailSummary, { backgroundColor: theme.raised, borderColor: theme.line }]}>
                   <View style={[styles.statusBadge, { backgroundColor: badge.backgroundColor }]}>
                     <Text style={[styles.statusBadgeText, { color: badge.color }]}>● {estado}</Text>
                   </View>
-                  <Text style={styles.detailDescription}>{item.descripcion || 'Sin descripción'}</Text>
+                  <Text style={[styles.detailDescription, { color: theme.ink }]}>{item.descripcion || 'Sin descripción'}</Text>
                 </View>
 
                 <View style={styles.detailFields}>
-                  <DetailField label="Solicitante" value={item.solicitante} />
-                  <DetailField label="Técnico" value={item.tecnico || 'Sin asignar'} />
-                  <DetailField label="Categoría" value={item.categoria} />
-                  <DetailField label="Prioridad" value={item.prioridad} />
-                  <DetailField label="Creado" value={fechaVisible(item.fechaCreacion || item.fehaCreacion)} />
-                  {item.fechaSolucion ? <DetailField label="Resuelto" value={fechaVisible(item.fechaSolucion)} /> : null}
+                  <DetailField label="Solicitante" value={item.solicitante} isDark={isDark} />
+                  <DetailField label="Técnico" value={item.tecnico || 'Sin asignar'} isDark={isDark} />
+                  <DetailField label="Categoría" value={item.categoria} isDark={isDark} />
+                  <DetailField label="Prioridad" value={item.prioridad} isDark={isDark} />
+                  <DetailField label="Creado" value={fechaVisible(item.fechaCreacion || item.fehaCreacion)} isDark={isDark} />
+                  {item.fechaSolucion ? <DetailField label="Resuelto" value={fechaVisible(item.fechaSolucion)} isDark={isDark} /> : null}
                 </View>
 
                 <View style={styles.timelineSection}>
-                  <Text style={styles.timelineTitle}>Historial del ticket</Text>
+                  <Text style={[styles.timelineTitle, { color: theme.ink }]}>Historial del ticket</Text>
                   {seguimiento.length === 0 ? (
                     <Text style={styles.stateText}>Todavía no hay actualizaciones de seguimiento.</Text>
                   ) : seguimiento.map((evento, index) => (
                     <View key={evento.idSeguimientoTicket || `${evento.fechaSeguimiento}-${index}`} style={styles.timelineItem}>
                       <View style={styles.timelineMarker}><View style={styles.timelineDot} /></View>
-                      <View style={styles.timelineCopy}>
-                        <Text style={styles.timelineEventTitle}>{evento.titulo || 'Actualización del ticket'}</Text>
-                        <Text style={styles.timelineDescription}>{evento.descripsion || evento.descripcion || 'Sin descripción adicional.'}</Text>
-                        <Text style={styles.timelineMeta}>{evento.responsable || 'Sistema'}  ·  {fechaVisible(evento.fechaSeguimiento)}</Text>
+                      <View style={[styles.timelineCopy, { borderBottomColor: theme.line }]}>
+                        <Text style={[styles.timelineEventTitle, { color: theme.ink }]}>{evento.titulo || 'Actualización del ticket'}</Text>
+                        <Text style={[styles.timelineDescription, { color: theme.muted }]}>{evento.descripsion || evento.descripcion || 'Sin descripción adicional.'}</Text>
+                        <Text style={[styles.timelineMeta, { color: theme.muted }]}>{evento.responsable || 'Sistema'}  ·  {fechaVisible(evento.fechaSeguimiento)}</Text>
                       </View>
                     </View>
                   ))}
@@ -527,48 +545,57 @@ function DetalleTicketModal({ visible, ticket, detalle, seguimiento, cargando, e
   );
 }
 
-function DetailField({ label, value }) {
+function DetailField({ label, value, isDark }) {
+  const theme = isDark
+    ? { surface: '#252a3d', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.20)' }
+    : { surface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4' };
   return (
-    <View style={styles.detailField}>
-      <Text style={styles.detailFieldLabel}>{label}</Text>
-      <Text style={styles.detailFieldValue}>{value || '—'}</Text>
+    <View style={[styles.detailField, { backgroundColor: theme.surface, borderColor: theme.line }]}>
+      <Text style={[styles.detailFieldLabel, { color: theme.muted }]}>{label}</Text>
+      <Text style={[styles.detailFieldValue, { color: theme.ink }]}>{value || '—'}</Text>
     </View>
   );
 }
 
-function StatCard({ label, value, hint, color, compacto }) {
+function StatCard({ label, value, hint, color, compacto, isDark }) {
+  const theme = isDark
+    ? { surface: '#1d2030', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.20)' }
+    : { surface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4' };
   return (
-    <View style={[styles.statCard, compacto && styles.statCardCompact]}>
+    <View style={[styles.statCard, compacto && styles.statCardCompact, { backgroundColor: theme.surface, borderColor: theme.line }]}>
       <View style={styles.statTop}>
-        <Text style={styles.statLabel}>{label}</Text>
+        <Text style={[styles.statLabel, { color: theme.muted }]}>{label}</Text>
         <View style={[styles.statIcon, { backgroundColor: `${color}15` }]}><Text style={[styles.statIconText, { color }]}>▤</Text></View>
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statHint}>{hint}</Text>
+      <Text style={[styles.statValue, { color: theme.ink }]}>{value}</Text>
+      <Text style={[styles.statHint, { color: theme.muted }]}>{hint}</Text>
     </View>
   );
 }
 
-function TicketCard({ ticket, compacto, onPress, onGeneralDetails, showGeneralDetails }) {
+function TicketCard({ ticket, compacto, onPress, onGeneralDetails, showGeneralDetails, isDark }) {
+  const theme = isDark
+    ? { surface: '#1d2030', ink: '#F3F7FF', muted: '#B4C0D8', line: 'rgba(158,218,255,0.20)', brand: '#60D9FF' }
+    : { surface: '#ffffff', ink: '#18233b', muted: '#78859a', line: '#e7edf4', brand: '#355df4' };
   const codigo = ticket.codigoTicket || ticket.tickets || `TCK-${String(ticket.idTicket).padStart(6, '0')}`;
   const estado = ticket.estadoTicket || 'Sin estado';
   const badge = estiloEstado(estado);
   const fecha = ticket.fechaCreacion || ticket.fehaCreacion;
 
   return (
-    <View style={styles.ticketCard}>
+    <View style={[styles.ticketCard, { backgroundColor: theme.surface, borderTopColor: theme.line }]}>
       <View style={styles.ticketCardTop}>
-        <Text style={styles.ticketCode}>{codigo}</Text>
+        <Text style={[styles.ticketCode, { color: theme.brand }]}>{codigo}</Text>
         <View style={[styles.statusBadge, { backgroundColor: badge.backgroundColor }]}>
           <Text style={[styles.statusBadgeText, { color: badge.color }]}>● {estado}</Text>
         </View>
       </View>
-      <Text style={styles.ticketDescription}>{ticket.descripcion || 'Sin descripción'}</Text>
+      <Text style={[styles.ticketDescription, { color: theme.ink }]}>{ticket.descripcion || 'Sin descripción'}</Text>
       <View style={[styles.ticketMetaRow, compacto && styles.ticketMetaCompact]}>
-        <Text style={styles.ticketMeta}>{ticket.categoria || 'Sin categoría'}</Text>
-        <Text style={[styles.ticketMeta, { color: colorPrioridad(ticket.prioridad) }]}>● {ticket.prioridad || 'Sin prioridad'}</Text>
+        <Text style={[styles.ticketMeta, { color: theme.muted }]}>{ticket.categoria || 'Sin categoría'}</Text>
+        <View style={[styles.priorityBadge, { backgroundColor: fondoPrioridad(ticket.prioridad), borderColor: colorBordePrioridad(ticket.prioridad) }]}><View style={[styles.priorityDot, { backgroundColor: colorPrioridad(ticket.prioridad) }]} /><Text style={[styles.priorityBadgeText, { color: colorPrioridad(ticket.prioridad) }]}>{ticket.prioridad || 'Sin prioridad'}</Text></View>
       </View>
-      <Text style={styles.ticketFooterMeta}>{ticket.tecnico || 'Sin asignar'}  ·  {fechaVisible(fecha)}</Text>
+      <Text style={[styles.ticketFooterMeta, { color: theme.muted }]}>{ticket.tecnico || 'Sin asignar'}  ·  {fechaVisible(fecha)}</Text>
       <View style={styles.ticketActionRow}>
         <Pressable accessibilityRole="button" onPress={onPress} style={styles.viewDetailButton}>
           <Text style={styles.viewDetailButtonText}>Ver detalle y seguimiento</Text>
@@ -592,6 +619,20 @@ function estiloEstado(estado) {
   return { backgroundColor: '#eef3ff', color: C.brand };
 }
 
+function fondoPrioridad(prioridad) {
+  const color = colorPrioridad(prioridad);
+  if (color === C.red) return 'rgba(255, 91, 121, 0.15)';
+  if (color === C.amber) return 'rgba(255, 193, 74, 0.15)';
+  return 'rgba(49, 226, 175, 0.15)';
+}
+
+function colorBordePrioridad(prioridad) {
+  const color = colorPrioridad(prioridad);
+  if (color === C.red) return 'rgba(255, 91, 121, 0.42)';
+  if (color === C.amber) return 'rgba(255, 193, 74, 0.42)';
+  return 'rgba(49, 226, 175, 0.42)';
+}
+
 function colorPrioridad(prioridad) {
   const value = normalizarEstado(prioridad);
   if (value.includes('alta')) return C.red;
@@ -599,9 +640,10 @@ function colorPrioridad(prioridad) {
   return C.green;
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: C.background },
-  layout: { flex: 1, backgroundColor: C.background },
+function createStyles() { return StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#080914', position: 'relative' },
+  safeAreaLight: { backgroundColor: '#f4f7fb' },
+  layout: { flex: 1, backgroundColor: 'transparent' },
   header: { minHeight: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.line },
   logoutButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#f3f6fb' },
   logoutIcon: { color: C.muted, fontSize: 18 },
@@ -622,7 +664,7 @@ const styles = StyleSheet.create({
   successText: { color: C.green, fontSize: 11, fontWeight: '700' },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
   statsCompact: { gap: 9 },
-  statCard: { flexGrow: 1, flexBasis: 0, minWidth: 145, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 16, shadowColor: '#21385d', shadowOpacity: 0.035, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
+  statCard: { flexGrow: 1, flexBasis: 0, minWidth: 145, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 16, shadowColor: '#00CFFF', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
   statCardCompact: { width: '48%', minWidth: 0, flexBasis: '48%', padding: 13 },
   statTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   statLabel: { color: C.muted, fontSize: 10, fontWeight: '700', flex: 1 },
@@ -630,7 +672,7 @@ const styles = StyleSheet.create({
   statIconText: { fontSize: 15, fontWeight: '800' },
   statValue: { color: C.ink, fontSize: 27, fontWeight: '800', marginTop: 8 },
   statHint: { color: '#a2acbc', fontSize: 9, marginTop: 3 },
-  panel: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden', shadowColor: '#21385d', shadowOpacity: 0.035, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
+  panel: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden', shadowColor: '#00CFFF', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
   panelHead: { minHeight: 70, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 18, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.line },
   panelTitle: { color: C.ink, fontSize: 14, fontWeight: '800' },
   panelSubtitle: { color: C.muted, fontSize: 10, marginTop: 4 },
@@ -642,7 +684,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: C.ink, fontSize: 13, fontWeight: '800' },
   retryButton: { backgroundColor: C.brand, borderRadius: 8, paddingHorizontal: 13, paddingVertical: 8, marginTop: 4 },
   retryText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  ticketCard: { padding: 15, borderTopWidth: 1, borderTopColor: '#f0f3f7' },
+  ticketCard: { padding: 15, backgroundColor: C.ticketSurface, borderTopWidth: 1, borderTopColor: C.ticketLine },
   ticketActionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7, marginTop: 11 },
   generalTicketButton: { alignSelf: 'flex-start', minHeight: 30, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 8, backgroundColor: '#e6f7ef' },
   generalTicketButtonText: { color: C.green, fontSize: 9, fontWeight: '800' },
@@ -654,13 +696,16 @@ const styles = StyleSheet.create({
   ticketMetaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 11 },
   ticketMetaCompact: { marginTop: 9 },
   ticketMeta: { color: C.muted, fontSize: 10, fontWeight: '700' },
+  priorityBadge: { minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  priorityDot: { width: 7, height: 7, borderRadius: 4 },
+  priorityBadgeText: { fontSize: 9, fontWeight: '800' },
   ticketFooterMeta: { color: '#9aa5b6', fontSize: 9, marginTop: 9 },
-  viewDetailButton: { alignSelf: 'flex-start', minHeight: 30, justifyContent: 'center', paddingHorizontal: 9, borderWidth: 1, borderColor: C.line, borderRadius: 8, backgroundColor: '#fff' },
+  viewDetailButton: { alignSelf: 'flex-start', minHeight: 30, justifyContent: 'center', paddingHorizontal: 9, borderWidth: 1, borderColor: C.line, borderRadius: 8, backgroundColor: C.surface },
   viewDetailButtonText: { color: C.muted, fontSize: 9, fontWeight: '800' },
   footer: { color: '#a2acbc', fontSize: 8, fontWeight: '800', letterSpacing: 1, textAlign: 'center', marginTop: 20 },
   modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: 'rgba(15, 27, 48, 0.4)' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject },
-  formCard: { width: '100%', maxWidth: 520, maxHeight: '92%', borderRadius: 18, overflow: 'hidden', backgroundColor: C.surface, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+  formCard: { width: '100%', maxWidth: 520, maxHeight: '92%', borderRadius: 18, overflow: 'hidden', backgroundColor: C.modalSurface, borderWidth: 1, borderColor: C.line, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
   formContent: { padding: 22, paddingBottom: 24 },
   formHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, paddingBottom: 16, marginBottom: 17, borderBottomWidth: 1, borderBottomColor: C.line },
   formHeaderCopy: { flex: 1 },
@@ -669,8 +714,8 @@ const styles = StyleSheet.create({
   closeButton: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f6fb' },
   closeButtonText: { color: C.ink, fontSize: 23, lineHeight: 26 },
   formLabel: { color: '#3c4c65', fontSize: 11, fontWeight: '800', marginTop: 13, marginBottom: 7 },
-  descriptionInput: { minHeight: 105, maxHeight: 160, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderColor: '#dfe6ef', borderRadius: 10, backgroundColor: '#fbfcfe', color: C.ink, fontSize: 12, lineHeight: 18 },
-  selector: { borderWidth: 1, borderColor: '#dfe6ef', borderRadius: 10, backgroundColor: '#fbfcfe', overflow: 'hidden' },
+  descriptionInput: { minHeight: 105, maxHeight: 160, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderColor: C.line, borderRadius: 10, backgroundColor: C.inputSurface, color: C.ink, fontSize: 12, lineHeight: 18 },
+  selector: { borderWidth: 1, borderColor: C.line, borderRadius: 10, backgroundColor: C.inputSurface, overflow: 'hidden' },
   selectorButton: { minHeight: 45, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
   selectorText: { color: C.ink, fontSize: 12 },
   selectorPlaceholder: { color: '#a2acbc' },
@@ -688,13 +733,13 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.55 },
   submitText: { color: '#ffffff', fontSize: 11, fontWeight: '800' },
   detailOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: 'rgba(15, 27, 48, 0.4)' },
-  detailCard: { width: '100%', maxWidth: 620, maxHeight: '90%', borderRadius: 18, overflow: 'hidden', backgroundColor: C.surface, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+  detailCard: { width: '100%', maxWidth: 620, maxHeight: '90%', borderRadius: 18, overflow: 'hidden', backgroundColor: C.modalSurface, borderWidth: 1, borderColor: C.line, shadowColor: '#14213a', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, paddingHorizontal: 22, paddingTop: 21, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: C.line },
   detailContent: { padding: 22, paddingBottom: 25 },
   detailSummary: { padding: 15, borderRadius: 12, backgroundColor: '#f7f9fc' },
   detailDescription: { color: C.ink, fontSize: 13, fontWeight: '700', lineHeight: 20, marginTop: 10 },
   detailFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  detailField: { width: '48%', minWidth: 130, padding: 11, borderWidth: 1, borderColor: C.line, borderRadius: 10, backgroundColor: '#fff' },
+  detailField: { width: '48%', minWidth: 130, padding: 11, borderWidth: 1, borderColor: C.line, borderRadius: 10, backgroundColor: C.surface },
   detailFieldLabel: { color: '#99a4b5', fontSize: 9, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   detailFieldValue: { color: C.ink, fontSize: 11, fontWeight: '700', marginTop: 5 },
   timelineSection: { marginTop: 22 },
@@ -706,4 +751,13 @@ const styles = StyleSheet.create({
   timelineEventTitle: { color: C.ink, fontSize: 11, fontWeight: '800' },
   timelineDescription: { color: C.muted, fontSize: 10, lineHeight: 16, marginTop: 4 },
   timelineMeta: { color: '#9aa5b6', fontSize: 9, marginTop: 5 },
-});
+}); }
+styles = createStyles();
+
+
+
+
+
+
+
+
