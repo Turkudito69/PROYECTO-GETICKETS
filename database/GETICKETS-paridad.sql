@@ -15,7 +15,7 @@ BEGIN TRY
        OR OBJECT_ID(N'dbo.Tbl_Categoria', N'U') IS NULL
        OR OBJECT_ID(N'dbo.Tbl_Estado', N'U') IS NULL
     BEGIN
-        THROW 51000, N'No se encontro el esquema base de GETICKETS. Ejecuta primero el script original.', 1;
+        THROW 51000, N'No se encontro el esquema base de GETICKETS. Ejecuta primero GETICKETS-base-schema.sql.', 1;
     END;
 
     IF COL_LENGTH(N'dbo.Tbl_Usuario', N'FotoUrl') IS NULL

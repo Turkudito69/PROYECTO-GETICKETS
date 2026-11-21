@@ -1,5 +1,5 @@
 -- SCRIPT LEGACY: conservado como referencia historica.
--- Para instalar desde cero, usar database/Install-GETICKETS.ps1.
+-- Para instalar desde cero, usar database/GETICKETS-instalacion-completa.sql.
 create database GETICKETS
 go
 

@@ -35,13 +35,15 @@ Los nombres `Aplication` e `Infraestructure` conservan la escritura que ya usa l
 
 La instalación principal crea las tablas en orden de claves foráneas, aplica las migraciones y registra cada versión en `dbo.Tbl_Migracion`. Requiere SQL Server 2016 SP1 o posterior, `sqlcmd` disponible en `PATH`, autenticación integrada de Windows y permisos para crear o actualizar la base y sus objetos.
 
-Desde la raíz del repositorio, ejecuta este único comando para instalar o actualizar la base y aplicar la secuencia completa:
+Desde CMD o PowerShell, ubicado en la raíz del repositorio, ejecuta este comando para instalar o actualizar la base completa desde un solo archivo SQL. Cambia el servidor según el nombre que muestra SSMS:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\database\Install-GETICKETS.ps1 -Server ".\SQLEXPRESS01"
+```cmd
+sqlcmd -S "(localdb)\MSSQLLocalDB" -E -b -i ".\database\GETICKETS-instalacion-completa.sql"
 ```
 
-Sustituye `-Server` por la instancia de SQL Server de cada computadora. El instalador se detiene si un script falla y al final muestra el historial aplicado.
+Por ejemplo, para SQL Express usa `-S ".\SQLEXPRESS"`. `-E` usa la cuenta de Windows y `-b` hace que `sqlcmd` falle al primer error. El script crea o actualiza la base `GETICKETS`, conserva los registros existentes y añade las cuentas de demostración si faltan.
+
+`GETICKETS-instalacion-completa.sql` reúne los scripts versionados que aparecen abajo. `Install-GETICKETS.ps1` sigue disponible como alternativa PowerShell y ejecuta esas mismas migraciones por separado.
 
 El orden es:
 
@@ -146,14 +148,14 @@ Una forma sencilla de presentar el flujo es: “El usuario reporta un ticket des
 
 ## Preparación para trabajar en equipo
 
-Cada compañero clona la rama publicada y prepara su propia instancia SQL Server:
+Cada compañero clona la rama publicada y puede crear una copia local con el mismo esquema y datos iniciales:
 
 ```powershell
 git clone --branch frontend https://github.com/Turkudito69/PROYECTO-GETICKETS.git
 cd PROYECTO-GETICKETS
 ```
 
-Luego instala SQL Server y `sqlcmd`, ejecuta el instalador con el nombre de su instancia, configura `ConnectionStrings__default`, y levanta la API C# y Expo. Si usarán el mapa 3D, también inician el servicio Node. Cada proceso va en una terminal independiente. GitHub contiene el código y las migraciones, no una instancia compartida de SQL Server ni el archivo `.env.local`.
+Luego instala SQL Server y `sqlcmd` y ejecuta el comando anterior con su servidor. Eso no copia tickets ni usuarios reales que ya existan en otra computadora. Para compartir exactamente los mismos registros, deben conectarse a una única instancia SQL Server accesible por la red o compartir y restaurar un respaldo `.bak`. GitHub contiene el código y las migraciones, no una instancia compartida de SQL Server ni el archivo `.env.local`.
 
 ## Guion corto para la exposición
 
