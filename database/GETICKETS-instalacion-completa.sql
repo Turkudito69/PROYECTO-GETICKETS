@@ -1470,4 +1470,3 @@ GO
 
 -- ===== FIN: GETICKETS-ticket-flow-fix.sql =====
 GO
-
